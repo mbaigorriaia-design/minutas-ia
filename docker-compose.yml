@@ -17,6 +17,8 @@ services:
     container_name: frontend_ui
     ports:
       - "8501:8501"
+    volumes:
+      - ./frontend_ui:/app
     depends_on:
       - n8n
     restart: unless-stopped

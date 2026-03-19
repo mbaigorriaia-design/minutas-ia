@@ -1,0 +1,12 @@
+# Ignorar carpetas del agente local e IDE
+.agent/
+.gemini/
+__pycache__/
+*.pyc
+
+# Ignorar entorno virtual si existe
+venv/
+env/
+.env
+
+# (Nota: n8n_data sí se está commiteando porque ya estaba trackeado antes y guarda tus flujos)

@@ -1,0 +1,30 @@
+Reunión de Sincronización - Proyecto Tronador II (Subsistema de Aviónica)
+Fecha: 19 de Marzo de 2026
+
+[Inicio de la transcripción]
+
+Laura (Líder Proyecto): Buenos días a todos. La idea de hoy es revisar el estado del subsistema de aviónica para la próxima prueba en banco. Carlos, ¿cómo venimos con la integración del nuevo software de telemetría?
+
+Carlos (Ingeniero Software): Hola Laura. Bien, terminamos la rama principal ayer. Sin embargo, estamos viendo una latencia de unos 45 milisegundos en la recepción de datos de los sensores de presión. Es un poco más alto del límite de 30ms que habíamos establecido. 
+
+Laura: Entiendo. ¿Crees que es un problema del puerto de comunicaciones o de la carga de procesamiento?
+
+Carlos: Principalmente carga de procesamiento. Creo que si optimizamos el hilo de lectura podemos bajar esos 15 milisegundos extra. Necesito hasta el viernes para implementar esa corrección.
+
+Laura: Perfecto, anotamos eso como tarea tuya para el viernes. Ana, ¿desde Calidad hay algún bloqueo para las pruebas ambientales de la próxima semana?
+
+Ana (Control de Calidad): Hola. Por ahora el único bloqueo es que no hemos recibido la certificación de calibración de la cámara de vacío térmica. El proveedor dijo que la enviaría hoy a la tarde. Si llega hoy, no hay retrasos. Si no, tendremos que mover la prueba del martes al jueves.
+
+Laura: Ok. Diego, por favor hacé el seguimiento con el proveedor hoy después del mediodía para asegurar que nos manden esa certificación. 
+
+Diego (Operaciones): Entendido, me anoto llamar al proveedor a las 14hs. Por otro lado, les comento que en Operaciones ya preparamos el área limpia tipo ISO 8 para ensamblar los componentes una vez que pasen la prueba de Ana.
+
+Laura: Excelente noticia, gracias Diego. Bueno, resumiendo: Carlos optimiza la latencia para el viernes y Diego persigue al proveedor hoy por la tarde para no retrasar a Ana. ¿Todos de acuerdo?
+
+Carlos: De acuerdo.
+Ana: Todo claro.
+Diego: Listo.
+
+Laura: Perfecto, cortamos acá entonces. Gracias a todos, buen día.
+
+[Fin de la transcripción]

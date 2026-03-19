@@ -1,0 +1,69 @@
+Reunión Mensual de Coordinación - Proyecto SABIA-Mar (Fase D)
+Fecha: 19 de Marzo de 2026
+
+Participantes:
+- Roberto (Director de Proyecto)
+- Elena (Líder Ingeniería de Sistemas)
+- Marcos (Gestión de Calidad)
+- Sofía (Presupuesto y Compras)
+- Julián (Logística)
+- Valeria (Recursos Humanos)
+
+[Inicio de la grabación - 10:00 AM]
+
+Roberto: Buenos días equipo. Hoy tenemos una agenda bastante cargada. Estamos a dos meses del hito de revisión crítica (CDR) del instrumento principal. Quiero empezar con el estado presupuestario de las adquisiciones pendientes. Sofía, ¿cómo venimos con los paneles solares?
+
+Sofía: Buen día. Con los paneles estamos en rojo. El proveedor en Alemania nos mandó una actualización de costos anoche argumentando la "crisis de semiconductores". Están pidiendo un 15% adicional sobre la orden de compra que ya estaba firmada. Dicen que es fuerza mayor.
+
+Roberto: Eso no puede ser, teníamos precio cerrado. Marcos, ¿legalmente pueden hacer eso?
+
+Marcos: No soy legal, Roberto, yo veo Calidad... Pero hablé con legales esta mañana de casualidad y me comentaron que nuestro contrato tipo tiene una cláusula de ajuste máximo de hasta el 5%. Un 15% requeriría una renegociación completa y aprobación del directorio. Si no lo frenamos, se para la producción.
+
+Roberto: Ok. Sofía, tarea urgente para vos: armá una reunión con Legales hoy mismo, y redacten una nota formal al proveedor exigiendo el cumplimiento del tope del 5% del contrato original. No podemos absorber un 15%. 
+
+Sofía: Perfecto, me encargo de agendarlos hoy a la tarde. Reviso otro tema crítico: la importación del sensor "star tracker" está demorada en Aduana. Julián, ¿alguna novedad de tu lado?
+
+Julián: Sí, la carga llegó a Ezeiza el martes. El problema es que el despachante de aduanas nos trabó todo porque pide el certificado de exención impositiva que se venció el mes pasado. Valeria, creo que Recursos Humanos o Institucionales tenía que renovar eso, ¿no?
+
+Valeria: Ay, no Julián. Nosotros en RRHH solo vemos personal de planta. Ese trámite le corresponde a la Secretaría Administrativa. Igual, ayer crucé a Pablo de Administrativa en el pasillo y me adelantó que el certificado nuevo ya está firmado y sale oficialmente el viernes. 
+
+Julián: ¡Menos mal! Bueno, si el papel sale el viernes a última hora, yo el lunes a las 8 AM estoy físicamente en la aduana de Ezeiza destrabando el bulto. Tomen eso como fecha de liberación.
+
+Roberto: Bien. Destrabe del star tracker para el lunes. Valeria, ya que estamos contigo, ¿qué pasó con las contrataciones de los analistas térmicos que nos faltan?
+
+Valeria: Tenemos tres perfiles pre-seleccionados que pasaron el psicotécnico. Las entrevistas técnicas del panel final las tiene que hacer Elena. 
+
+Elena: Sí, perdón que interrumpa. Ya recibí los tres currículums, pero ayer estuve 14 horas colapsada con los ensayos del bus de datos en la cámara. Por cierto, fallaron en el ciclo frío. Voy a hacer las entrevistas el miércoles de la semana que viene.
+
+Roberto: Pará un segundo... ¿Los ensayos del bus de datos fallaron? ¿No nos atrasa eso el hito del CDR entero?
+
+Elena: Efectivamente puede ser grave. La temperatura bajó a -40 grados térmicos y la tarjeta de adquisición se reinició dos veces de forma intermitente. Marcos y yo nos quedamos hasta tarde analizando la telemetría y encontramos al culpable. El log de fallas apunta directamente a un problema en los capacitores de tantalio de la fuente.
+
+Marcos: Confirmo el diagnóstico de Elena. Los lotes C4 y C5 vinieron con un defecto de fábrica imperceptible a temperatura ambiente; pierden su capacitancia por completo a bajas temperaturas. Tenemos que extraer la placa de vuelo de la cámara y reemplazar esos 8 capacitores. 
+
+Roberto: ¿Y tenemos repuestos de este tipo de capacitores de grado espacial en el laboratorio?
+
+Julián: De esos específicos para vuelo no tenemos. Averigüé con nuestro corredor y tienen 16 semanas de "lead time" (tiempo de entrega) para importarlos oficialmente.
+
+Roberto: ¡16 semanas! Se nos cae el proyecto entero, es inaceptable. 
+
+Elena: Roberto, tranquilo. Me imaginé este escenario y ya hablé de forma no oficial con la gente de INVAP esta mañana. Tienen un stock remanente del satélite SAOCOM guardado en Bariloche que usan los mismos capacitores idénticos. Nos los pueden prestar mediante un "convenio interinstitucional de cooperación de emergencia". 
+
+Roberto: Elena, no sé cómo haces, pero me devolviste el alma al cuerpo. Genial. Por favor, gestioná hoy mismo el pedido formal del convenio apuntando los IDs exactos de los lotes. Yo apenas corte esta reunión voy a llamar al Presidente del directorio para que apure las firmas institucionales. 
+
+Elena: Trato hecho. Mando el pedido hoy formal. Si logran firmarlo entre hoy y mañana, la gente logística de INVAP los pone en un vuelo y el viernes los vamos a retirar a Aeroparque. El fin de semana los chicos del labo los sueldan.
+
+Marcos: Y de mi lado me comprometo a armar la nueva orden secundaria de ensayos para el lunes, apenas la placa modificada esté lista para volver a entrar a la cámara, y por supuesto revisar que esto quede registrado debidamente en la matriz de trazabilidad y NCR (reporte de no conformidad).
+
+Roberto: Maravilloso manejo de crisis, equipo. Queda claro entonces el plan de acción general, lo resumo rápido antes de irnos: 
+Sofía: Reunión con Legales por el panel solar hoy. 
+Julián: Liberación en Ezeiza el próximo lunes. 
+Elena: Entrevistas de los analistas térmicos el miércoles próximo, y pedido oficial forml a INVAP *hoy*. 
+Marcos: Prepara nuevas órdenes de ensayo y reporte de fallas para la semana próxima. 
+Y me asigno a mí mismo la tarea de destrabar hoy mismo las firmas institucionales arriba para traer los repuestos de Bariloche. ¿Queda algún tema suelto?
+
+Valeria: Solo un aviso parroquial rápido: Acuérdense de que el personal del laboratorio cargue las "horas extra" del fin de semana en el portal de licencias antes del corte del día 20, si no se las van a pagar recién en Mayo. 
+
+Roberto: Copiado y bajado ese mensaje al laboratorio por el grupo de chat. Damos por cerrada la reunión. Muchas gracias a todos, a trabajar.
+
+[Fin de la grabación - 10:45 AM]
