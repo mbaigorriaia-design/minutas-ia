@@ -25,4 +25,6 @@ Este proyecto consiste en una aplicación de Python (Streamlit) integrada con fl
 * **[2026-03-18]**: Transición de Google Drive a carga local de archivos. Se implementó procesamiento de `.docx` y `.txt` directamente en el frontend (Streamlit) y se simplificó el flujo n8n a solo 5 nodos esenciales.
 * **[2026-03-18]**: Corrección final de robustez en el flujo `Minutas-VENG`. Se implementó limpieza automática de markdown en el parser de JSON y se corrigió la expresión del nodo de respuesta final, eliminando errores de "No data found".
 * [2026-03-18]: Sincronización de Docker con `app.py`. Se añadió un volumen de montaje en `docker-compose.yml` para el frontend, permitiendo hot-reload y asegurando que los cambios de código (como la descarga en `.json`) se reflejen de inmediato sin reconstruir.
-* **[2026-03-19]**: Rediseño premium "marketinero" y dark mode del frontend (app.py y config.toml) incorporando branding e imagen de VENG.
+* **[2026-03-19]**: Rediseño avanzado del frontend (UI/UX) incorporando efecto "Glassmorphism", tipografía Inter (Google Fonts), diseño oculto por pestañas (Tabs) y panel Dark Mode.
+* **[2026-03-19]**: Creación de carpeta `Ejemplos/` con casos de prueba de transcripciones de reuniones de diversa complejidad (básica y stress-test).
+* **[2026-03-19]**: Limpieza de logs redundantes de n8n (`n8nEventLog.log`) y configuración de `.gitignore` previo al primer commit para evitar trackear información transitoria.

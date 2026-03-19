@@ -1,7 +1,6 @@
 import streamlit as st
 import requests
 import json
-import io
 import os
 from docx import Document
 
@@ -238,12 +237,12 @@ if uploaded_file:
                 try:
                     js = json.loads(st.session_state['minuta_json'])
                     st.json(js)
-                except:
+                except Exception:
                     st.code(st.session_state['minuta_json'], language="json")
             
             # Botón de descarga destacado en su propio contenedor
             st.markdown("<br>", unsafe_allow_html=True)
-            col_empty, col_btn, col_empty2 = st.columns([1, 2, 1])
+            _, col_btn, _ = st.columns([1, 2, 1])
             with col_btn:
                 st.download_button(
                     label="📥 Descargar Documento Oficial (.json)",
