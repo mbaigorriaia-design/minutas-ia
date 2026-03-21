@@ -28,3 +28,4 @@ Este proyecto consiste en una aplicación de Python (Streamlit) integrada con fl
 * **[2026-03-19]**: Rediseño avanzado del frontend (UI/UX) incorporando efecto "Glassmorphism", tipografía Inter (Google Fonts), diseño oculto por pestañas (Tabs) y panel Dark Mode.
 * **[2026-03-19]**: Creación de carpeta `Ejemplos/` con casos de prueba de transcripciones de reuniones de diversa complejidad (básica y stress-test).
 * **[2026-03-19]**: Limpieza de logs redundantes de n8n (`n8nEventLog.log`) y configuración de `.gitignore` previo al primer commit para evitar trackear información transitoria.
+* **[2026-03-20]**: Diseño e implementación de arquitectura "Chunking" (Map-Reduce) para evadir el límite de 12k TPM de la API de Groq en archivos extensos. Se crearon los documentos técnicos en `docs/` y el flujo paralelo `Minutas-VENG-Chunking` en n8n mediante la API MCP (dejando intacto el flujo original).
