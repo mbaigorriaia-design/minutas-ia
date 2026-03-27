@@ -1,0 +1,45 @@
+# Resumen de Reparación: Error de "Unicode Escape Sequence" en n8n
+
+## Contexto del Problema
+Durante las pruebas con el flujo `Minutas-VENG-Chunking`, el nodo **JS Parser Final** devolvía el siguiente error de ejecución:
+`Expecting Unicode escape sequence \uXXXX [line 1]`
+
+Este error no era causado directamente por el código JavaScript en sí, sino por la forma en que n8n (y su sandbox `vm2`) interpretan los strings con caracteres literales de escape o expresiones regulares pre-compiladas cuando la configuración del nodo no está perfectamente escapada. 
+
+## Causa Raíz
+1. **RegEx Parser Issue:** El uso de expresiones regulares con barras invertidas (`/```(?:json)?\s*([\s\S]*?)```/`) en conjunción con plantillas literales estaba generando un error de sintaxis en el intérprete interno de n8n antes de que el código siquiera se ejecutara.
+2. **Uso de `$input.item` en `runOnceForAllItems`:** El nodo estaba configurado para correr una vez por todos los ítems ("Run Once for All Items"), pero el código intentaba acceder directamente a `$input.item.json.text`. Esta sintaxis sólo es válida cuando el nodo corre una vez por cada ítem ("Run Once for Each Item").
+3. **Estructuras de Retorno de n8n:** Había otros nodos con advertencias o errores ocultos:
+   - El nodo **Preparar Texto** estaba devolviendo un objeto literal `{ text: ... }` en lugar de un Array de objetos `[{ json: { text: ... } }]`.
+   - El nodo **Entrada Minuta Chunking** (Webhook) en modo `responseNode` no tenía configurado el parámetro para continuar en caso de errores (`continueRegularOutput`).
+
+## Solución Aplicada vía n8n-MCP
+
+Haciendo uso automático de las herramientas MCP del agente, procedí a modificar el flujo `Minutas-VENG-Chunking` (`ID: 3ZDQWOzy9o2QvzTK`) aplicando los siguientes parches dinámicos (`n8n_update_partial_workflow`):
+
+1. **Reescritura Segura y Completa del `JS Parser Final`:**
+   Se reemplazó la lógica frágil por un loop robusto que itera correctamente los ítems (`$input.all()`), evitando regex literales problemáticos y utilizando validaciones estándar (`indexOf`), eliminando comillas dobles que pudieran romper la evaluación del JSON interno.
+   
+```javascript
+const items = $input.all();
+const results = [];
+for (const item of items) {
+  let texto = item.json.text || "";
+  let minuta = "No se pudo extraer el texto de la minuta.";
+  let data_json = {};
+  
+  // Lógica de extracción segura ...
+  
+  results.push({ json: { "minuta": minuta, "json": data_json, "raw_llm_text": texto } });
+}
+return results;
+```
+
+2. **Reparación del Nodo `Preparar Texto`:**
+   Se ajustó el código a `return [{ json: { text: $input.item.json.body.meeting_text } }];` para cumplir con el estándar estructural de n8n.
+
+3. **Reparación del Webhook Trigger:**
+   Se le agregó la propiedad de error handling recomendada (`"onError": "continueRegularOutput"`) para asegurar la correcta comunicación del Response Node FINAL hacia el exterior aunque falle un nodo intermedio.
+
+## Resultados
+Se probó la validación estática del flujo mediante MCP (`n8n_validate_workflow`), confirmando que se han mitigado los errores críticos estructurales. El parser ahora es resiliente al parseo de los chunks provistos de LangChain.

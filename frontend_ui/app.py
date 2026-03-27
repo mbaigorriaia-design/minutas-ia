@@ -131,21 +131,36 @@ with col_logo:
         )
 
 with col_text:
-    st.markdown("<h1>Generador de Minutas con Inteligencia Artificial</h1>", unsafe_allow_html=True)
-    st.markdown("<p class='subtitle'>Generación automatizada de minutas a partir de tus archivos de reunión.<br>Sube tu transcripción y obtén un resumen estructurado al instante.</p>", unsafe_allow_html=True)
+    st.markdown("<h1>Generador de Minutas Automático</h1>", unsafe_allow_html=True)
+    st.markdown("<p class='subtitle'>Generación automatizada de minutas a partir de tus archivos de reunión.<br>Subí tu transcripción y obtené un resumen estructurado al instante.</p>", unsafe_allow_html=True)
 
 st.markdown("---")
 
 def extract_text(file):
-    """Extrae el contenido de texto dependiendo de la extensión."""
+    """Extrae el contenido de texto dependiendo de la extensión e implementa optimización de tokens."""
+    import re
+    
     if file.name.endswith(".docx"):
         doc = Document(file)
         full_text = []
         for para in doc.paragraphs:
             full_text.append(para.text)
-        return "\n".join(full_text)
+        texto = "\n".join(full_text)
     else: # asume .txt
-        return file.getvalue().decode("utf-8")
+        texto = file.getvalue().decode("utf-8")
+        
+    # --- OPTIMIZACIÓN EXTREMA DE TOKENS IA ---
+    # 1. Eliminar marcas de tiempo como [00:15:20] o 00:15:20 que saturan transcripciones largas
+    texto = re.sub(r'\[?\b\d{1,2}:\d{2}(?::\d{2})?\b\]?', '', texto)
+    # 2. Reconstrucción semántica (Unir subtítulos rotos)
+    # Si una línea termina sin puntuación natural, se asume que la oración sigue y le borra el salto de línea.
+    texto = re.sub(r'([^.,?!:;>\]\-])\n+', r'\1 ', texto)
+    # 3. Eliminar tabulaciones y espacios múltiples innecesarios
+    texto = re.sub(r'[ \t]+', ' ', texto)
+    # 4. Eliminar saltos de línea excesivos (más de 2 vacíos se reducen a 2)
+    texto = re.sub(r'\n{3,}', '\n\n', texto)
+    
+    return texto.strip()
 
 # Inicializar estados si no existen
 if 'minuta_texto' not in st.session_state:
@@ -167,19 +182,37 @@ if uploaded_file:
             text_content = None
 
     if text_content:
+        st.markdown("### ⚙️ Opciones de Procesamiento", unsafe_allow_html=True)
+        modo_procesamiento = st.radio(
+            "Elige el motor de Inteligencia Artificial según la longitud de tu archivo:",
+            options=["🟢 Rápido (Reuniones Cortas - hasta ~15 pág)", "🟡 Extenso (Chunking Anti-Límites - más de 15 pág)"],
+            index=0,
+            help="El modo Extenso divide reuniones gigantes en partes para no romper los límites de tokens de la IA, pero puede demorar un par de minutos."
+        )
+        st.markdown("<br>", unsafe_allow_html=True)
+
         # Espacio para los botones
         col1, col2 = st.columns(2)
 
         with col1:
             if st.button("Generar minutas con IA", use_container_width=True):
-                with st.spinner("La IA está analizando tu reunión..."):
+                with st.spinner("La IA está analizando tu reunión... (el modo Extenso puede demorar unos minutos)"):
                     try:
+                        # Determinamos la ruta de n8n correcta según tu selección
+                        url_webhook = "http://n8n:5678/webhook/minutas"
+                        tiempo_espera = 120 # 2 minutos por defecto
+                        
+                        if "Extenso" in modo_procesamiento:
+                            url_webhook = "http://n8n:5678/webhook/minutas-chunking"
+                            tiempo_espera = 600 # 10 minutos para archivos grandes
+
                         # Enviamos el texto directamente a n8n
                         payload = {"meeting_text": text_content}
                         
                         response = requests.post(
-                            "http://n8n:5678/webhook/minutas",
-                            json=payload
+                            url_webhook,
+                            json=payload,
+                            timeout=tiempo_espera
                         )
                         
                         if response.status_code == 200:
@@ -209,15 +242,20 @@ if uploaded_file:
                                 # Verificación final antes de mostrar
                                 if st.session_state['minuta_texto']:
                                     st.success("¡Minutas generadas!")
-                                    st.rerun()
                                 else:
                                     st.warning("La IA generó una respuesta pero no pudimos extraer el texto de la minuta.")
                             else:
                                 st.error("La respuesta de la IA no tiene el formato esperado (se esperaba un Diccionario).")
                         else:
-                            st.error(f"Error en el servidor de IA (n8n): {response.text}")
+                            st.error(f"Error en el servidor de IA (n8n): {response.status_code} - {response.text}")
+                    except requests.exceptions.Timeout:
+                        st.error("⚠️ **Tiempo de espera superado (Timeout)**: El servidor n8n demoró más de 120 segundos en responder. El archivo podría estar procesándose en segundo plano en n8n.")
+                    except json.JSONDecodeError:
+                        st.error("⚠️ **Respuesta no válida**: El servidor n8n devolvió un formato incorrecto (no es JSON válido).")
+                        with st.expander("Ver respuesta cruda enviada por n8n (para depurar)"):
+                            st.text(response.text)
                     except Exception as e:
-                        st.error(f"Error de conexión: {str(e)}")
+                        st.error(f"Error de conexión: {type(e).__name__} - {str(e)}")
 
         # Mostrar resultado y permitir descarga si existe contenido
         if st.session_state.get('minuta_texto'):
