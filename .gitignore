@@ -10,3 +10,14 @@ env/
 .env
 
 # (Nota: n8n_data sí se está commiteando porque ya estaba trackeado antes y guarda tus flujos)
+
+# Carpetas a ignorar
+docs/
+ollama_data/
+Ejemplos/
+.atl/
+openspec/
+
+# Archivos pesados o irrelevantes
+*.log
+*.tar

@@ -1,0 +1,167 @@
+{
+  "name": "Minutas-VENG-Chunking",
+  "nodes": [
+    {
+      "id": "webhook-chunking",
+      "name": "Entrada Minuta Chunking",
+      "parameters": {
+        "httpMethod": "POST",
+        "options": {},
+        "path": "minutas-chunking",
+        "responseMode": "responseNode"
+      },
+      "position": [
+        -900,
+        944
+      ],
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "webhookId": "b7f7c469-8dcc-439d-b844-3236e7a2cf1f"
+    },
+    {
+      "id": "extract-text-node",
+      "name": "Preparar Texto",
+      "parameters": {
+        "jsCode": "return { text: $input.item.json.body.meeting_text };"
+      },
+      "position": [
+        -700,
+        944
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "credentials": {
+        "groqApi": {
+          "id": "lp5xj5bqxqpyWlsi",
+          "name": "Groq account"
+        }
+      },
+      "id": "groq-model",
+      "name": "Groq Chat Model",
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "position": [
+        -500,
+        1168
+      ],
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1
+    },
+    {
+      "id": "summarization-chain",
+      "name": "Summarization Chain",
+      "parameters": {
+        "chunkOverlap": 300,
+        "chunkSize": 8000,
+        "chunkingMode": "simple",
+        "operationMode": "nodeInputJson",
+        "options": {
+          "batching": {
+            "batchSize": 1,
+            "delayBetweenBatches": 15000
+          },
+          "summarizationMethodAndPrompts": {
+            "values": {
+              "combineMapPrompt": "Resume de forma concisa los puntos clave, decisiones y tareas del siguiente fragmento de transcripci\u00f3n de reuni\u00f3n:\\n\\n\"{text}\"",
+              "prompt": "=Sos un generador de minutas profesionales. No asumas el contexto: puede ser una reuni\u00f3n interna, con proveedores, clientes o t\u00e9cnicos. Us\u00e1 solo la informaci\u00f3n disponible en el texto.\\n\\nA partir de los res\u00famenes compilados de los fragmentos de la transcripci\u00f3n, gener\u00e1 el documento final consolidado:\\n\\n1) Una MINUTA clara, profesional y fiel al contenido general.\\n2) Un JSON estructurado con: tipo_reunion, participantes, decisiones[], requerimientos[], acciones[], riesgos[] y pendientes[].\\n\\nReglas: No inventes informaci\u00f3n. Si algo no est\u00e1, dejalo vac\u00edo. Manten\u00e9 lenguaje formal y claro.\\n\\nFormato EXACTO de salida:\\n---MINUTA---\\n(texto)\\n\\n---JSON---\\n(json v\u00e1lido)\\n\\nFRAGMENTOS DE TRANSCRIPCI\u00d3N RESUMIDA:\\n\"{text}\"",
+              "summarizationMethod": "map_reduce"
+            }
+          }
+        }
+      },
+      "position": [
+        -500,
+        944
+      ],
+      "type": "@n8n/n8n-nodes-langchain.chainSummarization",
+      "typeVersion": 2.1
+    },
+    {
+      "id": "js-parser",
+      "name": "JS Parser Final",
+      "parameters": {
+        "jsCode": "let texto = $input.item.json.text || \"\";\\n\\nlet minuta = \"No se pudo extraer el texto de la minuta.\";\\nlet data_json = {};\\n\\nif (texto.includes(\"---MINUTA---\")) {\\n    const partes = texto.split(\"---MINUTA---\")[1];\\n    if (partes.includes(\"---JSON---\")) {\\n        minuta = partes.split(\"---JSON---\")[0].trim();\\n    } else {\\n        minuta = partes.trim();\\n    }\\n} else if (texto.trim() !== \"\") {\\n    minuta = texto.split(\"---JSON---\")[0].trim();\\n}\\n\\nif (texto.includes(\"---JSON---\")) {\\n    let json_str = texto.split(\"---JSON---\")[1].trim();\\n    if (json_str.includes(\"```json\")) {\\n        json_str = json_str.split(\"```json\")[1].split(\"```\")[0].trim();\\n    } else if (json_str.includes(\"```\")) {\\n        const match = json_str.match(/```(?:json)?\\\\s*([\\\\s\\\\S]*?)```/);\\n        if (match) {\\n            json_str = match[1].trim();\\n        } else {\\n            json_str = json_str.split(\"```\")[1].split(\"```\")[0].trim();\\n        }\\n    }\\n    try {\\n        data_json = JSON.parse(json_str);\\n    } catch (e) {\\n        data_json = { \"error\": \"No se pudo parsear JSON\", \"error_msg\": e.message, \"raw_text_extracted\": json_str };\\n    }\\n}\\n\\nreturn { \"minuta\": minuta, \"json\": data_json, \"raw_llm_text\": texto };"
+      },
+      "position": [
+        -200,
+        944
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "response-node",
+      "name": "Response Node FINAL",
+      "parameters": {
+        "responseBody": "={{ $json }}"
+      },
+      "position": [
+        100,
+        944
+      ],
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5
+    }
+  ],
+  "connections": {
+    "Entrada Minuta Chunking": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Preparar Texto",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "index": 0,
+            "node": "Summarization Chain",
+            "type": "ai_languageModel"
+          }
+        ]
+      ]
+    },
+    "JS Parser Final": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Response Node FINAL",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Preparar Texto": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Summarization Chain",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Summarization Chain": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "JS Parser Final",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  }
+}

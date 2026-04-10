@@ -1,0 +1,63 @@
+{
+  "name": "Chunking+ByPass",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "minutas-chunking-bypass",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// === CHUNKING + BYPASS: Todo-en-Uno ===\n// Corta el texto en pedazos, llama a Ollama UNO POR UNO via HTTP directo,\n// y acumula el resultado con la tecnica Refine.\n\nconst texto = $input.first().json.body.meeting_text;\nconst CHUNK_SIZE = 6000;\nconst OVERLAP = 300;\n\n// 1) Cortar texto en chunks\nconst chunks = [];\nlet start = 0;\nwhile (start < texto.length) {\n  const end = Math.min(start + CHUNK_SIZE, texto.length);\n  chunks.push(texto.substring(start, end));\n  if (end >= texto.length) break;\n  start = end - OVERLAP;\n}\n\n// 2) Procesar cada chunk secuencialmente (Refine)\nlet accumulated = '';\n\nfor (let i = 0; i < chunks.length; i++) {\n  let prompt = '';\n\n  if (i === 0 || !accumulated) {\n    // Prompt inicial: primera lectura\n    prompt = 'Sos un generador de minutas profesionales. No asumas el contexto: puede ser una reunion interna, con proveedores, clientes o tecnicos. Usa solo la informacion disponible en el texto.\\n\\nA partir del siguiente fragmento de una transcripcion de reunion, arma una primera version de la minuta extrayendo participantes, temas discutidos y decisiones fundamentales:\\n\\n\"' + chunks[i] + '\"\\n\\nFormato de salida:\\n---MINUTA---\\n(texto de la minuta)\\n\\n---JSON---\\n(json valido con: tipo_reunion, participantes, decisiones, requerimientos, acciones, riesgos, pendientes)';\n  } else {\n    // Prompt de refinamiento: acumular info\n    prompt = 'Tenemos una minuta preliminar creada hasta el momento:\\n\"' + accumulated + '\"\\n\\nTenemos mas contexto de la reunion a continuacion:\\n------------\\n\"' + chunks[i] + '\"\\n------------\\nDado este nuevo fragmento de texto, refine y amplie la minuta original con la nueva informacion.\\nIMPORTANTE: Siempre en tu respuesta final, mantene y combina todo en esta estructura EXACTA:\\n\\n---MINUTA---\\n(la suma de tu minuta original + el nuevo texto)\\n\\n---JSON---\\n(un json valido con: tipo_reunion, participantes, decisiones, requerimientos, acciones, riesgos, pendientes)';\n  }\n\n  // Llamada HTTP directa a Ollama (sin LangChain, sin timeout de 5 min)\n  const response = await $helpers.httpRequest({\n    method: 'POST',\n    url: 'http://ollama:11434/api/generate',\n    body: {\n      model: 'llama3.2',\n      stream: false,\n      options: { num_ctx: 8192 },\n      prompt: prompt\n    },\n    headers: { 'Content-Type': 'application/json' },\n    timeout: 600000\n  });\n\n  accumulated = response.response || '';\n}\n\n// 3) Parsear el resultado final acumulado\nlet minuta = 'No se pudo extraer el texto de la minuta';\nlet data_json = {};\n\nif (accumulated.includes('---MINUTA---')) {\n  const splitMinuta = accumulated.split('---MINUTA---')[1];\n  if (splitMinuta) {\n    if (splitMinuta.includes('---JSON---')) {\n      minuta = splitMinuta.split('---JSON---')[0].trim();\n    } else {\n      minuta = splitMinuta.trim();\n    }\n  }\n} else {\n  const braceIdx = accumulated.indexOf('{');\n  if (braceIdx > 0) {\n    minuta = accumulated.substring(0, braceIdx).trim();\n  } else {\n    minuta = accumulated.trim();\n  }\n}\n\ntry {\n  let raw = accumulated;\n  if (raw.includes('```json')) {\n    const partes = raw.split('```json');\n    if (partes.length > 1) raw = partes[1].split('```')[0];\n  }\n  const firstBrace = raw.indexOf('{');\n  const lastBrace = raw.lastIndexOf('}');\n  if (firstBrace !== -1 && lastBrace !== -1) {\n    data_json = JSON.parse(raw.substring(firstBrace, lastBrace + 1));\n  } else {\n    data_json = { error: 'No JSON found' };\n  }\n} catch (e) {\n  data_json = { error: String(e) };\n}\n\nreturn [{\n  json: {\n    minuta: minuta,\n    json: data_json,\n    raw_llm_text: accumulated,\n    chunks_procesados: chunks.length\n  }\n}];"
+      },
+      "id": "procesador",
+      "name": "Procesador Chunking+ByPass",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {},
+      "id": "response",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [720, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Procesador Chunking+ByPass",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesador Chunking+ByPass": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

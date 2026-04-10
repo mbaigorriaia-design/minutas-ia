@@ -2,7 +2,16 @@ import streamlit as st
 import requests
 import json
 import os
+import socket
 from docx import Document
+
+def get_n8n_url(path):
+    """Determina si debe usar 'n8n' (Docker) o 'localhost' (Local)"""
+    try:
+        socket.gethostbyname('n8n')
+        return f"http://n8n:5678/webhook/{path}"
+    except socket.gaierror:
+        return f"http://localhost:5678/webhook/{path}"
 
 # Configuración de página
 st.set_page_config(page_title="Generador de Minutas VENG", page_icon="✨", layout="wide")
@@ -132,7 +141,7 @@ with col_logo:
 
 with col_text:
     st.markdown("<h1>Generador de Minutas Automático</h1>", unsafe_allow_html=True)
-    st.markdown("<p class='subtitle'>Generación automatizada de minutas a partir de tus archivos de reunión.<br>Subí tu transcripción y obtené un resumen estructurado al instante.</p>", unsafe_allow_html=True)
+    st.markdown("<p class='subtitle'>Generación automatizada de minutas a partir de tus archivos de reunión.<br>Subí tu transcripción y obtené un resumen estructurado.</p>", unsafe_allow_html=True)
 
 st.markdown("---")
 
@@ -194,19 +203,53 @@ if uploaded_file:
         # Espacio para los botones
         col1, col2 = st.columns(2)
 
-        with col1:
-            if st.button("Generar minutas con IA", use_container_width=True):
-                with st.spinner("La IA está analizando tu reunión... (el modo Extenso puede demorar unos minutos)"):
-                    try:
-                        # Determinamos la ruta de n8n correcta según tu selección
-                        url_webhook = "http://n8n:5678/webhook/minutas"
-                        tiempo_espera = 120 # 2 minutos por defecto
-                        
-                        if "Extenso" in modo_procesamiento:
-                            url_webhook = "http://n8n:5678/webhook/minutas-chunking"
-                            tiempo_espera = 600 # 10 minutos para archivos grandes
+        # Inicializar estado de procesamiento
+        if 'processing' not in st.session_state:
+            st.session_state.processing = False
 
-                        # Enviamos el texto directamente a n8n
+        with col1:
+            if st.button("Generar minutas con IA", use_container_width=True, disabled=st.session_state.processing):
+                st.session_state.processing = True
+                st.rerun() # Forzar el re-render para desactivar el botón
+
+        # Si el estado es procesando, ejecutamos la lógica
+        if st.session_state.processing:
+            with st.spinner("La IA está analizando tu reunión... (el modo Extenso puede demorar unos minutos)"):
+                try:
+                    if "Extenso" in modo_procesamiento:
+                        # === N8N BYPASS: Limpieza + Chunking en n8n ===
+                        url_webhook = get_n8n_url("minutas-chunking")
+                        payload = {"meeting_text": text_content}
+                        
+                        # Aumentamos el timeout ya que el flujo de n8n procesará los chunks secuencialmente
+                        tiempo_espera = 3600 # 1 hora
+                        
+                        response = requests.post(
+                            url_webhook,
+                            json=payload,
+                            timeout=tiempo_espera
+                        )
+                        
+                        if response.status_code == 200:
+                            data = response.json()
+                            
+                            # Si n8n devuelve una lista, tomamos el primer elemento
+                            if isinstance(data, list) and len(data) > 0:
+                                data = data[0]
+                            
+                            if isinstance(data, dict):
+                                st.session_state['minuta_texto'] = data.get('minuta', 'No se pudo obtener la minuta')
+                                st.session_state['minuta_json'] = json.dumps(data.get('json', {}), indent=4, ensure_ascii=False)
+                            else:
+                                st.error("Formato de respuesta inesperado de n8n.")
+                        else:
+                            st.error(f"Error en n8n: {response.status_code} - {response.text}")
+                    
+                    else:
+                        # === MODO RÁPIDO: Flujo normal via n8n ===
+                        url_webhook = get_n8n_url("minutas")
+                        tiempo_espera = 600
+
                         payload = {"meeting_text": text_content}
                         
                         response = requests.post(
@@ -218,47 +261,48 @@ if uploaded_file:
                         if response.status_code == 200:
                             data = response.json()
                             
-                            # Normalizar respuesta (n8n a veces manda una lista)
                             if isinstance(data, list) and len(data) > 0:
                                 data = data[0]
                             
                             if isinstance(data, dict):
-                                # CASO 1: Tenemos las claves esperadas (minuta, json)
                                 if 'minuta' in data and 'json' in data:
-                                    st.session_state['minuta_texto'] = data.get('minuta', '')
-                                    st.session_state['minuta_json'] = json.dumps(data.get('json', {}), indent=4, ensure_ascii=False)
+                                    texto_crudo = data.get('minuta', '')
+                                    st.session_state['minuta_texto'] = texto_crudo
+                                    
+                                    json_data = data.get('json', {})
+                                    if not json_data and texto_crudo.strip().startswith('{') and texto_crudo.strip().endswith('}'):
+                                        try:
+                                            json_data = json.loads(texto_crudo)
+                                            st.session_state['minuta_texto'] = "Datos extraídos correctamente en formato JSON."
+                                        except json.JSONDecodeError:
+                                            pass
+                                            
+                                    st.session_state['minuta_json'] = json.dumps(json_data, indent=4, ensure_ascii=False)
                                 
-                                # CASO 2: La respuesta ES el json estructurado directamente (como en la captura del usuario)
                                 elif 'tipo_reunion' in data or 'participantes' in data:
-                                    # Intentamos mostrar algo como minuta
                                     st.session_state['minuta_texto'] = f"Minuta generada con éxito.\nParticipantes: {', '.join(data.get('participantes', []))}"
                                     st.session_state['minuta_json'] = json.dumps(data, indent=4, ensure_ascii=False)
                                 
-                                # CASO 3: Respuesta genérica
                                 else:
                                     st.session_state['minuta_texto'] = data.get('text') or data.get('minutas_texto') or str(data)
                                     st.session_state['minuta_json'] = json.dumps(data, indent=4, ensure_ascii=False)
                                 
-                                # Verificación final antes de mostrar
-                                if st.session_state['minuta_texto']:
-                                    st.success("¡Minutas generadas!")
-                                else:
-                                    st.warning("La IA generó una respuesta pero no pudimos extraer el texto de la minuta.")
-                            else:
-                                st.error("La respuesta de la IA no tiene el formato esperado (se esperaba un Diccionario).")
-                        else:
-                            st.error(f"Error en el servidor de IA (n8n): {response.status_code} - {response.text}")
-                    except requests.exceptions.Timeout:
-                        st.error("⚠️ **Tiempo de espera superado (Timeout)**: El servidor n8n demoró más de 120 segundos en responder. El archivo podría estar procesándose en segundo plano en n8n.")
-                    except json.JSONDecodeError:
-                        st.error("⚠️ **Respuesta no válida**: El servidor n8n devolvió un formato incorrecto (no es JSON válido).")
-                        with st.expander("Ver respuesta cruda enviada por n8n (para depurar)"):
-                            st.text(response.text)
-                    except Exception as e:
-                        st.error(f"Error de conexión: {type(e).__name__} - {str(e)}")
+                    if st.session_state.get('minuta_texto') or (st.session_state.get('minuta_json') and st.session_state['minuta_json'] != "{}"):
+                        st.success("¡Minutas generadas!")
+                except requests.exceptions.Timeout:
+                    st.error("⚠️ **Tiempo de espera superado (Timeout)**: El servidor demoró demasiado en responder.")
+                except json.JSONDecodeError:
+                    st.error("⚠️ **Respuesta no válida**: El servidor devolvió un formato incorrecto (no es JSON válido).")
+                    with st.expander("Ver respuesta cruda (para depurar)"):
+                        st.text(response.text if 'response' in locals() else "No se pudo obtener respuesta del servidor.")
+                except Exception as e:
+                    st.error(f"Error al conectar con n8n: {e}")
+                finally:
+                    st.session_state.processing = False
+                    st.rerun()
 
         # Mostrar resultado y permitir descarga si existe contenido
-        if st.session_state.get('minuta_texto'):
+        if st.session_state.get('minuta_texto') or (st.session_state.get('minuta_json') and st.session_state['minuta_json'] != "{}"):
             st.markdown("---")
             st.markdown("### ✨ Resultados del Análisis")
             

@@ -1,0 +1,89 @@
+{
+  "name": "Minutas VENG Rapidas (Bypass Timeout)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "minutas-bypass",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-bypass",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [ 240, 240 ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama3.2\",\n  \"stream\": false,\n  \"options\": {\n    \"num_ctx\": 32768\n  },\n  \"prompt\": \"Sos un generador de minutas profesionales.\\nGenerá el documento final consolidado de esta reunión de forma hiper-detallada:\\n\\n1) Una MINUTA clara, profesional y fiel al contenido.\\n2) Un JSON estructurado con: tipo_reunion, participantes, decisiones, requerimientos, acciones, riesgos y pendientes.\\n\\nReglas: No inventes información. Mantené lenguaje formal.\\n\\nFormato EXACTO de salida:\\n---MINUTA---\\n(texto)\\n\\n---JSON---\\n(json válido)\\n\\nTRANSCRIPCIÓN COMPLETA:\\n{{ $json.body.meeting_text }}\"\n}",
+        "options": {
+          "timeout": 2400000
+        }
+      },
+      "id": "http-ollama",
+      "name": "LLamada Ollama Infinita",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [ 460, 240 ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  let texto = item.json.response || \"\";\n  let minuta = \"No se pudo extraer el texto de la minuta\";\n  let data_json = {}; \n\n  if (texto.includes(\"---MINUTA---\")) {\n      const splitMinuta = texto.split(\"---MINUTA---\")[1];\n      if (splitMinuta) {\n          if (splitMinuta.includes(\"---JSON---\")) {\n              minuta = splitMinuta.split(\"---JSON---\")[0].trim();\n          } else {\n              minuta = splitMinuta.trim();\n          }\n      }\n  } else {\n      minuta = texto.split(\"{\")[0].trim();\n  }\n\n  try {\n      let raw_texto = texto;\n      if (raw_texto.includes(\"```json\")) {\n          const partes = raw_texto.split(\"```json\");\n          if (partes.length > 1) raw_texto = partes[1].split(\"```\")[0];\n      }\n      const firstBrace = raw_texto.indexOf(\"{\");\n      const lastBrace = raw_texto.lastIndexOf(\"}\");\n      \n      if (firstBrace !== -1 && lastBrace !== -1) {\n          data_json = JSON.parse(raw_texto.substring(firstBrace, lastBrace + 1));\n      } else {\n          data_json = { \"error\": \"No JSON found\" };\n      }\n  } catch (e) {\n      data_json = { \"error\": String(e) };\n  }\n\n  results.push({\n    json: {\n      minuta: minuta,\n      json: data_json,\n      raw_llm_text: texto\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "js-parser",
+      "name": "JS Parser Final",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [ 700, 240 ]
+    },
+    {
+      "parameters": {},
+      "id": "response",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [ 900, 240 ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "LLamada Ollama Infinita",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLamada Ollama Infinita": {
+      "main": [
+        [
+          {
+            "node": "JS Parser Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JS Parser Final": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}

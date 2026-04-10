@@ -1,4 +1,7 @@
-version: "3.9"
+
+networks:
+  minutas-net:
+    driver: bridge
 
 services:
   n8n:
@@ -8,9 +11,14 @@ services:
       - "5678:5678"
     environment:
       - WEBHOOK_URL=http://localhost:5678/
+      - N8N_BLOCK_SSRF_GET_ADDITIONAL_HOSTS=ollama,host.docker.internal
+      - N8N_BLOCK_SSRF_POST_ADDITIONAL_HOSTS=ollama,host.docker.internal
     volumes:
-      - ./n8n_data:/home/node/.n8n
+      - minutas_n8n_data:/home/node/.n8n
+    networks:
+      - minutas-net
     restart: unless-stopped
+
 
   frontend_ui:
     build: ./frontend_ui
@@ -21,4 +29,23 @@ services:
       - ./frontend_ui:/app
     depends_on:
       - n8n
+    networks:
+      - minutas-net
     restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    volumes:
+      - minutas_ollama_data:/root/.ollama
+    networks:
+      - minutas-net
+    restart: unless-stopped
+
+volumes:
+  minutas_n8n_data:
+  minutas_ollama_data:
