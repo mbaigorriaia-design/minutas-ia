@@ -135,14 +135,14 @@ st.markdown("""
 col_logo, col_text = st.columns([1, 4])
 
 with col_logo:
-    logo_path = "logo_veng.png"
+    logo_path = "logo_veng.PNG"
     if os.path.exists(logo_path):
         st.image(logo_path, use_container_width=True)
     else:
         # Placeholder si no subió el logo aún
         st.markdown(
             "<div style='background-color:#0a2238; border-radius:8px; padding:20px; text-align:center; border: 1px dashed #2c83c3; color:#2c83c3;'>"
-            "🚀<br><small>Falta logo_veng.png</small></div>", 
+            "🚀<br><small>Falta logo_veng.PNG</small></div>", 
             unsafe_allow_html=True
         )
 
