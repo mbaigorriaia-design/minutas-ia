@@ -34,12 +34,12 @@
       "typeVersion": 4.1,
       "position": [
         460,
-        240
+        460
       ]
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  let texto = item.json.response || \"\";\n  let minuta = \"No se pudo extraer el texto de la minuta\";\n  let data_json = {}; \n\n  if (texto.includes(\"---MINUTA---\")) {\n      const splitMinuta = texto.split(\"---MINUTA---\")[1];\n      if (splitMinuta) {\n          if (splitMinuta.includes(\"---JSON---\")) {\n              minuta = splitMinuta.split(\"---JSON---\")[0].trim();\n          } else {\n              minuta = splitMinuta.trim();\n          }\n      }\n  } else {\n      minuta = texto.split(\"{\")[0].trim();\n  }\n\n  try {\n      let raw_texto = texto;\n      if (raw_texto.includes(\"```json\")) {\n          const partes = raw_texto.split(\"```json\");\n          if (partes.length > 1) raw_texto = partes[1].split(\"```\")[0];\n      }\n      const firstBrace = raw_texto.indexOf(\"{\");\n      const lastBrace = raw_texto.lastIndexOf(\"}\");\n      \n      if (firstBrace !== -1 && lastBrace !== -1) {\n          data_json = JSON.parse(raw_texto.substring(firstBrace, lastBrace + 1));\n      } else {\n          data_json = { \"error\": \"No JSON found\" };\n      }\n  } catch (e) {\n      data_json = { \"error\": String(e) };\n  }\n\n  results.push({\n    json: {\n      minuta: minuta,\n      json: data_json,\n      raw_llm_text: texto\n    }\n  });\n}\n\nreturn results;"
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n    let texto = item.json.response || \"\";\n    let minuta = \"No se pudo extraer el texto de la minuta\";\n    let datos_json = {};\n\n    if (texto.includes(\"---MINUTA---\")) {\n        const partes = texto.split(\"---MINUTA---\");\n        if (partes.length > 1) {\n            minuta = partes[1].split(\"---JSON---\")[0].trim();\n        }\n    } else {\n        minuta = texto.split(\"{\")[0].trim();\n    }\n\n    try {\n        let raw_json_part = \"\";\n        if (texto.includes(\"```json\")) {\n            raw_json_part = texto.split(\"```json\")[1].split(\"```\")[0];\n        } else if (texto.includes(\"---JSON---\")) {\n            raw_json_part = texto.split(\"---JSON---\")[1];\n        } else {\n            const firstBrace = texto.indexOf(\"{\");\n            const lastBrace = texto.lastIndexOf(\"}\");\n            if (firstBrace !== -1 && lastBrace !== -1) {\n                raw_json_part = texto.substring(firstBrace, lastBrace + 1);\n            }\n        }\n        raw_json_part = raw_json_part.trim().replace(/[\\x00-\\x1F\\x7F-\\x9F]/g, \"\");\n        datos_json = JSON.parse(raw_json_part);\n    } catch (e) {\n        datos_json = { \n            error: \"JSON mal formado por la IA\", \n            original_text_snippet: (item.json.response || \"\").substring(0, 50) + \"...\" \n        };\n    }\n\n    results.push({\n        json: {\n            minuta: minuta,\n            json: datos_json,\n            raw_llm_response: texto\n        }\n    });\n}\nreturn results;"
       },
       "id": "js-parser",
       "name": "JS Parser Final",
@@ -47,7 +47,7 @@
       "typeVersion": 2,
       "position": [
         700,
-        240
+        700
       ]
     },
     {
@@ -58,7 +58,7 @@
       "typeVersion": 1,
       "position": [
         900,
-        240
+        900
       ]
     }
   ],
