@@ -4,13 +4,24 @@ import json
 import os
 import socket
 from docx import Document
+from dotenv import load_dotenv
+
+# Cargar variables de entorno
+load_dotenv()
 
 def get_n8n_url(path):
-    """Determina si debe usar 'n8n' (Docker) o 'localhost' (Local)"""
+    """Determina si debe usar 'n8n' (Docker), el ENV variable o 'localhost' (Local)"""
+    # 1. Prioridad: Variable de entorno (Para Portainer/Docker)
+    env_url = os.getenv("N8N_BASE_URL")
+    if env_url:
+        return f"{env_url.rstrip('/')}/webhook/{path}"
+    
+    # 2. Intento por DNS si no hay ENV
     try:
         socket.gethostbyname('n8n')
         return f"http://n8n:5678/webhook/{path}"
     except socket.gaierror:
+        # 3. Fallback a localhost
         return f"http://localhost:5678/webhook/{path}"
 
 # Configuración de página
