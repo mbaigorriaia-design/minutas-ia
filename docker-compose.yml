@@ -27,7 +27,7 @@ services:
     build: ./frontend_ui
     container_name: frontend_ui
     ports:
-      - "8505:8501"
+      - "8051:8501"
     environment:
       - N8N_BASE_URL=http://n8n:5678
     depends_on:
