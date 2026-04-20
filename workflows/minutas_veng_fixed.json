@@ -1,0 +1,104 @@
+{
+  "name": "Minutas-VENG-ROBUSTO",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "minutas",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-node",
+      "name": "Entrada Minuta",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -896,
+        944
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama3.2\",\n  \"stream\": false,\n  \"options\": {\n    \"num_ctx\": 32768\n  },\n  \"prompt\": \"Sos un generador de minutas profesionales. No asumas el contexto: puede ser una reuni\u00f3n interna, con proveedores, clientes o t\u00e9cnicos. Us\u00e1 solo la informaci\u00f3n disponible en el texto.\\n\\nA partir de la siguiente transcripci\u00f3n, gener\u00e1:\\n\\n1) Una MINUTA clara, profesional y fiel al contenido.\\n2) Un JSON estructurado con: tipo_reunion, participantes, decisiones[], requerimientos[], acciones[], riesgos[] y pendientes[].\\n\\nReglas: No inventes informaci\u00f3n. Si algo no est\u00e1, dejalo vac\u00edo. Manten\u00e9 lenguaje formal y claro.\\n\\nFormato EXACTO de salida:\\n---MINUTA---\\n(texto)\\n\\n---JSON---\n(json v\u00e1lido)\\n\\nTRANSCRIPCI\u00d3N:\\n{{ $json.body.meeting_text }}\"\n}",
+        "options": {
+          "timeout": 2400000
+        }
+      },
+      "id": "http-ollama",
+      "name": "Llamada HTTP a Ollama",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -672,
+        944
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const primerItem = $input.first();\nlet texto = \"\";\nif (primerItem && primerItem.json && primerItem.json.response) {\n    texto = primerItem.json.response;\n} else if (primerItem && primerItem.json && primerItem.json.text) {\n    texto = primerItem.json.text;\n}\n\nlet minuta = \"No se pudo extraer el texto de la minuta pero aqu\u00ed est\u00e1 el resumen crudo provisto por la IA:\";\nlet data_json = Object.assign({}, {});\n\n// Soporte para ambos formatos de markers (--- o **)\nconst markers = {\n    minuta_start: [\"---MINUTA---\", \"**MINUTA**\"],\n    json_start: [\"---JSON---\", \"**JSON**\"]\n};\n\nlet minutaStartIdx = -1;\nlet jsonStartIdx = -1;\n\nfor (const m of markers.minuta_start) {\n    if (texto.toUpperCase().includes(m.toUpperCase())) {\n        minutaStartIdx = texto.toUpperCase().indexOf(m.toUpperCase()) + m.length;\n        break;\n    }\n}\n\nfor (const m of markers.json_start) {\n    if (texto.toUpperCase().includes(m.toUpperCase())) {\n        jsonStartIdx = texto.toUpperCase().indexOf(m.toUpperCase());\n        break;\n    }\n}\n\nif (minutaStartIdx !== -1) {\n    if (jsonStartIdx !== -1 && jsonStartIdx > minutaStartIdx) {\n        minuta = texto.substring(minutaStartIdx, jsonStartIdx).trim();\n    } else {\n        minuta = texto.substring(minutaStartIdx).trim();\n    }\n} else {\n    // Fallback: split por la primera llave {\n    minuta = texto.split(\"{\")[0].trim();\n    for (const m of markers.json_start) {\n        if (minuta.toUpperCase().endsWith(m.toUpperCase())) {\n            minuta = minuta.substring(0, minuta.length - m.length).trim();\n        }\n    }\n    if (minuta === \"\") minuta = \"Los datos fueron extra\u00eddos en formato JSON directo.\";\n}\n\ntry {\n    let raw_texto = texto;\n    if (raw_texto.includes(\"```json\")) {\n        const partes = raw_texto.split(\"```json\");\n        if (partes.length > 1) raw_texto = partes[1].split(\"```\")[0];\n    } else if (raw_texto.includes(\"```\")) {\n        const partes = raw_texto.split(\"```\");\n        if (partes.length > 1) raw_texto = partes[1].split(\"```\")[0];\n    }\n    const firstBrace = raw_texto.indexOf(\"{\");\n    const lastBrace = raw_texto.lastIndexOf(\"}\");\n    if (firstBrace !== -1 && lastBrace !== -1) {\n        data_json = JSON.parse(raw_texto.substring(firstBrace, lastBrace + 1));\n    } else {\n        data_json = { \"error\": \"No se encontraron llaves JSON en la respuesta de la IA\" };\n    }\n} catch (e) {\n    data_json = { \"error\": \"La IA gener\u00f3 un JSON mal formado\", \"error_msg\": String(e) };\n}\n\nreturn [{\n    json: {\n        \"minuta\": minuta,\n        \"json\": data_json,\n        \"raw_llm_text\": texto\n    }\n}];"
+      },
+      "id": "js-parser",
+      "name": "JS Parser Final",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -320,
+        944
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "response-node",
+      "name": "Response Node FINAL",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        944
+      ]
+    }
+  ],
+  "connections": {
+    "Entrada Minuta": {
+      "main": [
+        [
+          {
+            "node": "Llamada HTTP a Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Llamada HTTP a Ollama": {
+      "main": [
+        [
+          {
+            "node": "JS Parser Final",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JS Parser Final": {
+      "main": [
+        [
+          {
+            "node": "Response Node FINAL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "tags": [],
+  "versionId": 1
+}

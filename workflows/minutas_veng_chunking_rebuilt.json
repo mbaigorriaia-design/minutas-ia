@@ -1,0 +1,188 @@
+{
+  "name": "Minutas-VENG-Chunking",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "minutas-chunking",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-chunking",
+      "name": "Entrada Minuta Chunking",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nif (!item || !item.json) return [];\n\nconst inputData = item.json;\nlet texto = \"\";\n\nlet bodyParsed = inputData.body;\nif (typeof bodyParsed === \"string\") {\n  try { bodyParsed = JSON.parse(bodyParsed); } catch(e) {}\n}\n\nif (typeof inputData.meeting_text === 'string') {\n  texto = inputData.meeting_text;\n} else if (bodyParsed && typeof bodyParsed.meeting_text === 'string') {\n  texto = bodyParsed.meeting_text;\n} else if (typeof inputData.body === 'string') {\n  texto = inputData.body;\n}\n\nif (!texto || texto.trim().length === 0) {\n  return [{ json: { error: \"No texto\" } }];\n}\n\n// --- LIMPIEZA AVANZADA DE FOTOS E IM\u00c1GENES DE PERFIL ---\n// 1. Borrar referencias entre corchetes: [Foto], [Imagen], [Avatar], [User], etc.\ntexto = texto.replace(/\\[(Image|source|Foto|Imagen|Gr\u00e1fico|Figura|Avatar|User|Profile|Picture)\\s*:?\\s*\\d*\\.?\\d*\\]/gi, '');\n\n// 2. Borrar s\u00edmbolos unicode comunes de avatar o imagen al inicio de l\u00ednea\ntexto = texto.replace(/[\\u{1F464}-\\u{1F469}\\u{1F4BB}\\u{1F4C1}\\u{1F5BC}\\u{1F4F7}\\u{1F4F8}]/gu, '');\n\nconst lineas = texto.split('\\n');\nconst lineasLimpias = [];\n\nfor (const linea of lineas) {\n  const lineaAux = linea.trim();\n  if (!lineaAux) continue;\n\n  // IDEA 3: Filtrar intervenciones cortas tras el posible nombre del orador\n  const parts = lineaAux.split(':');\n  const contentOnly = parts.length > 1 ? parts.slice(1).join(':').trim() : lineaAux;\n  \n  if (contentOnly.length > 20) {\n    // IDEA 1: Colapsar espacios internos\n    lineasLimpias.push(lineaAux.replace(/[ \\t]+/g, ' '));\n  }\n}\n\ntexto = lineasLimpias.join('\\n');\n\n// --- CHUNK EXTREMO PARA ARCHIVOS GIGANTES ---\nconst CHUNK_SIZE = 100000; \nconst OVERLAP = 5000;\nconst chunks = [];\nlet start = 0;\n\nwhile (start < texto.length) {\n  const end = Math.min(start + CHUNK_SIZE, texto.length);\n  chunks.push(texto.substring(start, end));\n  if (end >= texto.length) break;\n  start = end - OVERLAP;\n}\n\nreturn chunks.map(c => ({ json: { chunk: c } }));"
+      },
+      "id": "partidor-node",
+      "name": "Partidor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -460,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "loop-node",
+      "name": "LoopChunks",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const currentRunIndex = $runIndex;\nlet context = \"\";\n\nif (currentRunIndex > 0) {\n   try {\n     const allHTTP = $(\"HTTP Request\").all();\n     const lastRun = allHTTP[allHTTP.length - 1];\n     if (lastRun && lastRun.json && lastRun.json.response) {\n         const resp = lastRun.json.response;\n         context = resp.length > 2000 ? resp.substring(resp.length - 2000) : resp;\n     }\n   } catch(e) {}\n}\n\nlet basePrompt = `Sos un experto generador de minutas profesionales para VENG SA.\n\nActualizá la minuta acumulada con este fragmento:\n${$json.chunk}\n\nCONTEXTO ACUMULADO:\n${context}\n\nINSTRUCCIONES:\n1. Integrá lo nuevo sin borrar lo anterior (como participantes o decisiones ya tomadas).\n2. No uses números como 0: o 1: en las listas JSON.\n3. Usá exactamente los campos indicados abajo.\n\nFormato EXACTO de salida:\n---MINUTA---\n(tu resumen profesional aquí)\n\n---JSON---\n{\n  \"tipo_reunion\": \"\",\n  \"participantes\": [],\n  \"decisiones\": [],\n  \"requerimientos\": [],\n  \"acciones\": [],\n  \"riesgos\": [],\n  \"pendientes\": []\n}`;\n\nconst body = {\n  model: \"llama3.2\",\n  stream: false,\n  options: { num_ctx: 32768, temperature: 0.1 },\n  prompt: basePrompt\n};\n\nreturn [{ json: { chunk: $json.chunk, contexto: context, ollamaBody: body } }];"
+      },
+      "id": "get-context-node",
+      "name": "Get Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        20,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.ollamaBody) }}",
+        "options": {
+          "timeout": 3600000
+        }
+      },
+      "id": "http-request-ollama",
+      "name": "HTTP Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        260,
+        -160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "let accumulated = \"\";\ntry {\n  const allHTTP = $(\"HTTP Request\").all();\n  accumulated = allHTTP[allHTTP.length - 1].json.response;\n} catch(e) {\n  accumulated = \"Error recuperando items: \" + e.message;\n}\n\nlet minuta = 'Error al procesar';\nlet data_json = {};\n\nif (accumulated.includes('---MINUTA---')) {\n  const partes = accumulated.split('---MINUTA---');\n  const contenido = partes[partes.length - 1];\n  minuta = contenido.split('---JSON---')[0].trim();\n}\n\ntry {\n  const jsonMatch = accumulated.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) data_json = JSON.parse(jsonMatch[0]);\n} catch (e) {\n  data_json = { error: \"JSON incompleto o no encontrado\" };\n}\n\nreturn [{ json: { minuta: minuta, json: data_json } }];"
+      },
+      "id": "extract-final-node",
+      "name": "Extract Final",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        40,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "response-node",
+      "name": "Response Node FINAL",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        280,
+        160
+      ]
+    }
+  ],
+  "connections": {
+    "Entrada Minuta Chunking": {
+      "main": [
+        [
+          {
+            "node": "Partidor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Partidor": {
+      "main": [
+        [
+          {
+            "node": "LoopChunks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LoopChunks": {
+      "main": [
+        [
+          {
+            "node": "Extract Final",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Context": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "LoopChunks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Final": {
+      "main": [
+        [
+          {
+            "node": "Response Node FINAL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "tags": [],
+  "versionId": 1
+}

@@ -40,6 +40,7 @@ services:
       - "11434:11434"
     environment:
       - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_KEEP_ALIVE=1m
     volumes:
       - minutas_ollama_data:/root/.ollama
     networks:

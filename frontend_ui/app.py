@@ -176,6 +176,8 @@ if 'minuta_texto' not in st.session_state:
     st.session_state['minuta_texto'] = ""
 if 'minuta_json' not in st.session_state:
     st.session_state['minuta_json'] = ""
+if 'error_msg' not in st.session_state:
+    st.session_state['error_msg'] = ""
 
 # Selector de archivos
 uploaded_file = st.file_uploader("Buscá tu archivo en tu equipo:", type=["txt", "docx"])
@@ -207,6 +209,9 @@ if uploaded_file:
         if 'processing' not in st.session_state:
             st.session_state.processing = False
 
+        if len(text_content) > 8000 and "Rápido" in modo_procesamiento:
+            st.warning("⚠️ **Advertencia:** Documento largo detectado. El servidor puede 'ahogarse' (timeout) tratando de procesarlo de una sola vez. **Recomendamos usar el modo Extenso**.")
+        
         with col1:
             if st.button("Generar minutas con IA", use_container_width=True, disabled=st.session_state.processing):
                 st.session_state.processing = True
@@ -214,15 +219,21 @@ if uploaded_file:
 
         # Si el estado es procesando, ejecutamos la lógica
         if st.session_state.processing:
-            with st.spinner("La IA está analizando tu reunión... (el modo Extenso puede demorar unos minutos)"):
+            mensaje_espera = "La IA está analizando tu reunión..."
+            if "Extenso" in modo_procesamiento:
+                mensaje_espera += " (el modo Extenso puede demorar unos minutos)"
+            else:
+                mensaje_espera += " (modo Rápido)"
+                
+            with st.spinner(mensaje_espera):
                 try:
                     if "Extenso" in modo_procesamiento:
                         # === N8N BYPASS: Limpieza + Chunking en n8n ===
                         url_webhook = get_n8n_url("minutas-chunking")
                         payload = {"meeting_text": text_content}
                         
-                        # Aumentamos el timeout ya que el flujo de n8n procesará los chunks secuencialmente
-                        tiempo_espera = 3600 # 1 hora
+                        # Aumentamos el timeout al m\u00e1ximo (2 horas) para archivos masivos
+                        tiempo_espera = 7200 # 2 horas
                         
                         response = requests.post(
                             url_webhook,
@@ -246,9 +257,9 @@ if uploaded_file:
                             st.error(f"Error en n8n: {response.status_code} - {response.text}")
                     
                     else:
-                        # === MODO RÁPIDO: Flujo normal via n8n ===
-                        url_webhook = get_n8n_url("minutas")
-                        tiempo_espera = 600
+                        # === MODO RÁPIDO: Flujo normal via n8n (Sin limitación de timeout de 5 min) ===
+                        url_webhook = get_n8n_url("minutas-bypass")
+                        tiempo_espera = 1800 # 30 min (Ollama slow start / big files)
 
                         payload = {"meeting_text": text_content}
                         
@@ -259,7 +270,10 @@ if uploaded_file:
                         )
                         
                         if response.status_code == 200:
-                            data = response.json()
+                            try:
+                                data = response.json()
+                            except Exception:
+                                raise Exception(f"Respuesta de n8n no es JSON válido. Status 200. Body: {response.text[:200]}")
                             
                             if isinstance(data, list) and len(data) > 0:
                                 data = data[0]
@@ -286,20 +300,25 @@ if uploaded_file:
                                 else:
                                     st.session_state['minuta_texto'] = data.get('text') or data.get('minutas_texto') or str(data)
                                     st.session_state['minuta_json'] = json.dumps(data, indent=4, ensure_ascii=False)
+                        else:
+                            st.session_state['error_msg'] = f"El servidor n8n devolvió un error (Status {response.status_code}): {response.text[:200]}"
                                 
                     if st.session_state.get('minuta_texto') or (st.session_state.get('minuta_json') and st.session_state['minuta_json'] != "{}"):
+                        st.session_state['error_msg'] = "" # Limpiar errores previos si tuvo éxito
                         st.success("¡Minutas generadas!")
                 except requests.exceptions.Timeout:
-                    st.error("⚠️ **Tiempo de espera superado (Timeout)**: El servidor demoró demasiado en responder.")
+                    st.session_state['error_msg'] = "⚠️ **Tiempo de espera superado (Timeout)**: El servidor demoró demasiado en responder."
                 except json.JSONDecodeError:
-                    st.error("⚠️ **Respuesta no válida**: El servidor devolvió un formato incorrecto (no es JSON válido).")
-                    with st.expander("Ver respuesta cruda (para depurar)"):
-                        st.text(response.text if 'response' in locals() else "No se pudo obtener respuesta del servidor.")
+                    st.session_state['error_msg'] = "⚠️ **Respuesta no válida**: El servidor devolvió un formato incorrecto (no es JSON válido)."
                 except Exception as e:
-                    st.error(f"Error al conectar con n8n: {e}")
+                    st.session_state['error_msg'] = f"Error al conectar con n8n: {e}"
                 finally:
                     st.session_state.processing = False
                     st.rerun()
+
+        # Mostrar errores si existen
+        if st.session_state.get('error_msg'):
+            st.error(st.session_state['error_msg'])
 
         # Mostrar resultado y permitir descarga si existe contenido
         if st.session_state.get('minuta_texto') or (st.session_state.get('minuta_json') and st.session_state['minuta_json'] != "{}"):
