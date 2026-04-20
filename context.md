@@ -56,8 +56,11 @@ Este proyecto consiste en una aplicación de Python (Streamlit) integrada con fl
 * **[2026-04-13]**: **Optimización de Hardware (12GB RAM)**. Se configuró `OLLAMA_KEEP_ALIVE=1m` en el `docker-compose.yml` para asegurar que el modelo se descargue de la RAM inmediatamente tras procesar cada fragmento, evitando el colapso del sistema Windows.
 * **[2026-04-14]**: **Soporte para Minutas Gigantes (13MB+)**. Se rediseñó el flujo de Chunking en n8n (`Minutas-VENG-Chunking`) aumentando el tamaño de fragmento de 1.500 a **100.000 caracteres**. Esto permitió procesar archivos masivos (como la minuta de Quiroga) reduciendo la cantidad de peticiones y evitando timeouts infinitos.
 * **[2026-04-14]**: **Implementación de "Sanitizer" (Limpiador Avanzado)**. Se integró lógica JavaScript en el nodo `Partidor` de n8n para: 1) Eliminar referencias a fotos/imagenes `[Image 1]`. 2) Borrar avatares e iconos unicode. 3) Filtrar intervenciones "ruido" de menos de 20 caracteres (ej: "Sí", "OK", "Mhm").
-* **[2026-04-20]**: **Despliegue Profesional en Portainer**. Se movieron todos los flujos de n8n a la carpeta `/workflows`, se estandarizaron los volúmenes para redundancia en servidor y se subió el proyecto a GitHub. Se configuró la estrategia de **GitOps** para que Portainer se actualice automáticamente con cada `push`.
-* **[2026-04-20]**: **Blindaje de Tiempo (Timeout 2h)**. Se aumentó el tiempo de espera en `app.py` a **7200 segundos** y se implementó reconexión mediante la variable `N8N_BASE_URL`, permitiendo que la App espere pacientemente el procesamiento de archivos muy pesados en el servidor.
+* **[2026-04-20]**: **Despliegue Profesional en Portainer y Estabilización Final**.
+    - **Alineación de Red**: Se mapearon los puertos finales autorizados por IT (**8051** para Frontend y **5678** para n8n). Se descartó el uso de puertos no estándar para evitar bloqueos de Firewall corporativo.
+    - **Blindaje en 4GB RAM**: Se optimizó el sistema para hardware limitado, validando el uso de `llama3.2:3b` y descartando modelos pesados. 
+    - **Solución "Self-Healing JSON"**: Se desarrolló la versión 3 del `JS Parser Final` en n8n, capaz de limpiar y corregir automáticamente "alucinaciones" de formato en el JSON (como índices numéricos y comas faltantes), asegurando que la UI nunca reciba datos corruptos.
+    - **Compatibilidad Linux/Docker**: Se eliminó `python-dotenv` para evitar fallos de arranque y se corrigió el nombre del logo corporativo a `logo_veng.PNG` respetando el Case Sensitivity de Linux.
 
 ## Arquitectura Final Consolidada (2026-04-20)
 - **Modo Rápido 🟢**: `Streamlit → n8n (/minutas-fast) → Ollama → Streamlit`. Para respuestas inmediatas.
