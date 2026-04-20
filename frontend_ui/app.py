@@ -4,10 +4,6 @@ import json
 import os
 import socket
 from docx import Document
-from dotenv import load_dotenv
-
-# Cargar variables de entorno
-load_dotenv()
 
 def get_n8n_url(path):
     """Determina si debe usar 'n8n' (Docker), el ENV variable o 'localhost' (Local)"""
