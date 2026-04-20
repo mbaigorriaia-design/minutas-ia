@@ -53,9 +53,16 @@ Este proyecto consiste en una aplicación de Python (Streamlit) integrada con fl
 * **[2026-03-30]**: Eliminación del flujo **Minutas RAG (PostgreSQL)** de n8n, por decisión del usuario. Se conserva el código fuente de la página `1_🐘_Minutas_RAG.py` en Streamlit como referencia futura.
 * **[2026-03-30]**: Limpieza de ejecuciones fallidas en n8n para liberar espacio en disco ocupado por logs de pruebas con transcripciones extensas repetidas.
 
-## Arquitectura Final (2026-03-31)
-- **Modo Rápido 🟢** (reuniones cortas, <15 pág): `Streamlit → n8n Webhook (/minutas) → LangChain + Ollama → Streamlit`. Flujo activo: `Minutas-VENG`.
-- **Modo Extenso 🟡** (reuniones largas, >15 pág): `Streamlit → Ollama DIRECTO (HTTP, chunking secuencial en Python) → Streamlit`. No usa n8n.
-- **Regla de Oro**: Jamás usar `num_ctx > 8192` ni procesamiento paralelo (`Map Reduce`) en hardware sin GPU dedicada.
-- **Timeouts**: Modo Rápido: 10 min (n8n). Modo Extenso: 30 min por chunk (Python directo).
-- **Flujos n8n activos**: Solo `Minutas-VENG` (modo Rápido). Los flujos experimentales (`Bypass Timeout`, `Chunking+ByPass`) pueden desactivarse/eliminarse.
+* **[2026-04-13]**: **Optimización de Hardware (12GB RAM)**. Se configuró `OLLAMA_KEEP_ALIVE=1m` en el `docker-compose.yml` para asegurar que el modelo se descargue de la RAM inmediatamente tras procesar cada fragmento, evitando el colapso del sistema Windows.
+* **[2026-04-14]**: **Soporte para Minutas Gigantes (13MB+)**. Se rediseñó el flujo de Chunking en n8n (`Minutas-VENG-Chunking`) aumentando el tamaño de fragmento de 1.500 a **100.000 caracteres**. Esto permitió procesar archivos masivos (como la minuta de Quiroga) reduciendo la cantidad de peticiones y evitando timeouts infinitos.
+* **[2026-04-14]**: **Implementación de "Sanitizer" (Limpiador Avanzado)**. Se integró lógica JavaScript en el nodo `Partidor` de n8n para: 1) Eliminar referencias a fotos/imagenes `[Image 1]`. 2) Borrar avatares e iconos unicode. 3) Filtrar intervenciones "ruido" de menos de 20 caracteres (ej: "Sí", "OK", "Mhm").
+* **[2026-04-20]**: **Despliegue Profesional en Portainer**. Se movieron todos los flujos de n8n a la carpeta `/workflows`, se estandarizaron los volúmenes para redundancia en servidor y se subió el proyecto a GitHub. Se configuró la estrategia de **GitOps** para que Portainer se actualice automáticamente con cada `push`.
+* **[2026-04-20]**: **Blindaje de Tiempo (Timeout 2h)**. Se aumentó el tiempo de espera en `app.py` a **7200 segundos** y se implementó reconexión mediante la variable `N8N_BASE_URL`, permitiendo que la App espere pacientemente el procesamiento de archivos muy pesados en el servidor.
+
+## Arquitectura Final Consolidada (2026-04-20)
+- **Modo Rápido 🟢**: `Streamlit → n8n (/minutas-fast) → Ollama → Streamlit`. Para respuestas inmediatas.
+- **Modo Extenso 🟡**: `Streamlit → n8n (/minutas-chunking) → Loop Secuencial (Chunks de 100k) → Ollama → Streamlit`. Diseñado para resistir archivos de 10MB+ y hardware limitado.
+- **Gestión de Memoria**: Liberación automática de RAM cada 60 segundos.
+- **Limpieza de Datos**: Filtrado de "ruido" y avatares integrado en el flujo antes de llegar a la IA.
+- **Despliegue**: GitHub ➔ Portainer Stack (con Pull and Redeploy).
+- **Timeouts**: 2 horas de espera máxima para evitar errores de conexión en el frontend.
