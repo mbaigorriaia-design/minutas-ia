@@ -122,11 +122,20 @@ st.markdown("""
         border-left: 4px solid #2c83c3;
     }
     
-    /* Paneles de vista previa */
-    .stMarkdown pre {
-        background-color: #020a12 !important;
-        border-radius: 8px;
-        border: 1px solid #1a365d;
+    /* Botón Detener Emergency Style */
+    div[data-testid="stColumn"] button[kind="secondary"] {
+        background: rgba(239, 68, 68, 0.05) !important;
+        border: 1px solid rgba(239, 68, 68, 0.3) !important;
+        color: #f87171 !important;
+        border-radius: 12px !important;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+    }
+    div[data-testid="stColumn"] button[kind="secondary"]:hover {
+        background: rgba(239, 68, 68, 0.2) !important;
+        border-color: #ef4444 !important;
+        box-shadow: 0 0 25px rgba(239, 68, 68, 0.3) !important;
+        color: #ffffff !important;
+        transform: scale(1.02);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -219,10 +228,22 @@ if uploaded_file:
         if len(text_content) > 8000 and "Rápido" in modo_procesamiento:
             st.warning("⚠️ **Advertencia:** Documento largo detectado. El servidor puede 'ahogarse' (timeout) tratando de procesarlo de una sola vez. **Recomendamos usar el modo Extenso**.")
         
-        with col1:
-            if st.button("Generar minutas con IA", use_container_width=True, disabled=st.session_state.processing):
-                st.session_state.processing = True
-                st.rerun() # Forzar el re-render para desactivar el botón
+        # Botón de Procesar con estilo
+        col_btn, col_stop = st.columns([3, 1])
+        
+        with col_btn:
+            generate_clicked = st.button("🚀 Generar Minuta de Alta Precisión", use_container_width=True, disabled=st.session_state.processing)
+        
+        with col_stop:
+            if st.session_state.get('processing', False):
+                if st.button("⏹️ Detener", type="secondary", use_container_width=True):
+                    st.session_state.processing = False
+                    st.warning("⛔ Proceso cancelado por el usuario.")
+                    st.rerun()
+
+        if generate_clicked:
+            st.session_state.processing = True
+            st.rerun() # Forzar el re-render para desactivar el botón
 
         # Si el estado es procesando, ejecutamos la lógica
         if st.session_state.processing:
@@ -239,7 +260,7 @@ if uploaded_file:
                         url_webhook = get_n8n_url("minutas-chunking")
                         payload = {"meeting_text": text_content}
                         
-                        # Aumentamos el timeout al m\u00e1ximo (2 horas) para archivos masivos
+                        # Aumentamos el timeout al máximo (2 horas) para archivos masivos
                         tiempo_espera = 7200 # 2 horas
                         
                         response = requests.post(
