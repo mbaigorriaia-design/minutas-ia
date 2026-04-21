@@ -61,6 +61,10 @@ Este proyecto consiste en una aplicación de Python (Streamlit) integrada con fl
     - **Blindaje en 4GB RAM**: Se optimizó el sistema para hardware limitado, validando el uso de `llama3.2:3b` y descartando modelos pesados. 
     - **Solución "Self-Healing JSON"**: Se desarrolló la versión 3 del `JS Parser Final` en n8n, capaz de limpiar y corregir automáticamente "alucinaciones" de formato en el JSON (como índices numéricos y comas faltantes), asegurando que la UI nunca reciba datos corruptos.
     - **Compatibilidad Linux/Docker**: Se eliminó `python-dotenv` para evitar fallos de arranque y se corrigió el nombre del logo corporativo a `logo_veng.PNG` respetando el Case Sensitivity de Linux.
+* **[2026-04-20]**: **Optimización de Procesamiento en Tiempo Límite**. 
+    - **Gestión de RAM Crítica**: Se identificó que, aunque el servidor tiene 8.3 GB totales, solo cuenta con ~3.1 GB libres. Se estandarizó el uso de **`llama3.2:3b`** (o `qwen2.5:3b`) con un **`num_ctx` de 16384** para evitar el colapso del "model runner".
+    - **Blindaje de Timeouts**: Se aumentó el timeout del nodo `HTTP Request` en n8n de 1 hora a **2 horas (7.200.000 ms)** para permitir el procesamiento de minutas masivas que tardan más del estándar en hardware sin GPU.
+    - **Plan de Contingencia Portainer**: Se documentó el procedimiento de reseteo de credenciales mediante el contenedor `helper-reset-password` en caso de bloqueo del panel de administración.
 
 ## Arquitectura Final Consolidada (2026-04-20)
 - **Modo Rápido 🟢**: `Streamlit → n8n (/minutas-fast) → Ollama → Streamlit`. Para respuestas inmediatas.
