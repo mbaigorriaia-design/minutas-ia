@@ -7,18 +7,9 @@ from docx import Document
 
 def get_n8n_url(path):
     """Determina si debe usar 'n8n' (Docker), el ENV variable o 'localhost' (Local)"""
-    # 1. Prioridad: Variable de entorno (Para Portainer/Docker)
-    env_url = os.getenv("N8N_BASE_URL")
-    if env_url:
-        return f"{env_url.rstrip('/')}/webhook/{path}"
-    
-    # 2. Intento por DNS si no hay ENV
-    try:
-        socket.gethostbyname('n8n')
-        return f"http://n8n:5678/webhook/{path}"
-    except socket.gaierror:
-        # 3. Fallback a localhost
-        return f"http://localhost:5678/webhook/{path}"
+    # Usar estrictamente la variable de entorno, con fallback al nombre interno de Docker
+    env_url = os.getenv("N8N_BASE_URL", "http://n8n:5678")
+    return f"{env_url.rstrip('/')}/webhook/{path}"
 
 # Configuración de página
 st.set_page_config(page_title="Generador de Minutas VENG", page_icon="✨", layout="wide")
@@ -34,9 +25,9 @@ st.markdown("""
     }
 
     /* Ocultar elementos por defecto de Streamlit para un look más limpio */
-    #MainMenu {visibility: hidden;}
+    /* #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;}
+    header {visibility: hidden;} */
 
     /* Contenedor principal y fondo general */
     .stApp {
@@ -175,14 +166,32 @@ def extract_text(file):
         texto = file.getvalue().decode("utf-8")
         
     # --- OPTIMIZACIÓN EXTREMA DE TOKENS IA ---
-    # 1. Eliminar marcas de tiempo como [00:15:20] o 00:15:20 que saturan transcripciones largas
+    # 1. Eliminar etiquetas de fuente (Ej: <v Orador> o similares)
+    texto = re.sub(r'<[^>]+>', '', texto)
+    
+    # 2. Eliminar marcas de tiempo tradicionales (Ej: [00:15:20] o 00:15:20)
     texto = re.sub(r'\[?\b\d{1,2}:\d{2}(?::\d{2})?\b\]?', '', texto)
-    # 2. Reconstrucción semántica (Unir subtítulos rotos)
+    
+    # 3. Eliminar marcas de tiempo textuales (Ej: "0 minutos 3 segundos")
+    texto = re.sub(r'\b\d+\s+minutos?\s+\d+\s+segundos?\b', '', texto, flags=re.IGNORECASE)
+
+    # 4. Consolidar oradores y repeticiones de nombres
+    # Después de borrar los timestamps, pueden quedar nombres repetidos seguidos o separados por saltos de línea
+    texto = re.sub(r'[ \t]+', ' ', texto) # Normalizar espacios primero
+    
+    # Si el nombre aparece solo en una línea y se repite justo abajo:
+    patron_orador_multilinea = r'([A-Za-zÁÉÍÓÚáéíóúÑñüÜ0-9, \-]{3,60})\s*\n+\s*\1\b'
+    texto = re.sub(patron_orador_multilinea, r'\1:', texto, flags=re.IGNORECASE)
+    
+    # Si el nombre se repite en la misma línea (Ej: "Juan Perez Juan Perez"):
+    patron_orador_linea = r'([A-Za-zÁÉÍÓÚáéíóúÑñüÜ0-9, \-]{3,60})\s+\1\b'
+    texto = re.sub(patron_orador_linea, r'\1:', texto, flags=re.IGNORECASE)
+
+    # 5. Reconstrucción semántica (Unir subtítulos rotos)
     # Si una línea termina sin puntuación natural, se asume que la oración sigue y le borra el salto de línea.
     texto = re.sub(r'([^.,?!:;>\]\-])\n+', r'\1 ', texto)
-    # 3. Eliminar tabulaciones y espacios múltiples innecesarios
-    texto = re.sub(r'[ \t]+', ' ', texto)
-    # 4. Eliminar saltos de línea excesivos (más de 2 vacíos se reducen a 2)
+    
+    # 6. Eliminar saltos de línea excesivos (más de 2 vacíos se reducen a 2)
     texto = re.sub(r'\n{3,}', '\n\n', texto)
     
     return texto.strip()

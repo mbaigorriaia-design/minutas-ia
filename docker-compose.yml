@@ -13,8 +13,8 @@ services:
       - "5678:5678"
     environment:
       - WEBHOOK_URL=http://localhost:5678/
-      - N8N_BLOCK_SSRF_GET_ADDITIONAL_HOSTS=ollama,host.docker.internal
-      - N8N_BLOCK_SSRF_POST_ADDITIONAL_HOSTS=ollama,host.docker.internal
+      - N8N_BLOCK_SSRF_GET_ADDITIONAL_HOSTS=ollama
+      - N8N_BLOCK_SSRF_POST_ADDITIONAL_HOSTS=ollama
       - N8N_SECURE_COOKIE=false
     volumes:
       - minutas_n8n_data:/home/node/.n8n
@@ -43,7 +43,7 @@ services:
       - "11434:11434"
     environment:
       - OLLAMA_HOST=0.0.0.0
-      - OLLAMA_KEEP_ALIVE=1m
+      - OLLAMA_KEEP_ALIVE=60m
     volumes:
       - minutas_ollama_data:/root/.ollama
     networks:
