@@ -286,8 +286,28 @@ if uploaded_file:
                                 data = data[0]
                             
                             if isinstance(data, dict):
-                                st.session_state['minuta_texto'] = data.get('minuta', 'No se pudo obtener la minuta')
-                                st.session_state['minuta_json'] = json.dumps(data.get('json', {}), indent=4, ensure_ascii=False)
+                                minuta_texto = data.get('minuta', '')
+                                json_raw = data.get('json', data)
+                                
+                                # Fallback robusto por si n8n no genera bien el markdown
+                                if not minuta_texto or "Error" in minuta_texto or "No se pudo" in minuta_texto:
+                                    minuta_texto = "### ✨ Minuta Estructurada\n\n"
+                                    for k, v in json_raw.items():
+                                        if k not in ['minuta', 'json']:
+                                            minuta_texto += f"**{str(k).replace('_', ' ').title()}**\n"
+                                            if isinstance(v, list):
+                                                for item in v:
+                                                    if isinstance(item, dict):
+                                                        for sub_k, sub_v in item.items():
+                                                            minuta_texto += f"- **{str(sub_k).title()}:** {sub_v}\n"
+                                                    else:
+                                                        minuta_texto += f"- {item}\n"
+                                            else:
+                                                minuta_texto += f"{v}\n"
+                                            minuta_texto += "\n"
+                                
+                                st.session_state['minuta_texto'] = minuta_texto
+                                st.session_state['minuta_json'] = json.dumps(json_raw, indent=4, ensure_ascii=False)
                             else:
                                 st.error("Formato de respuesta inesperado de n8n.")
                         else:
