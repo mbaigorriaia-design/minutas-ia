@@ -279,32 +279,50 @@ if uploaded_file:
                         )
                         
                         if response.status_code == 200:
-                            data = response.json()
+                            try:
+                                data = response.json()
+                            except Exception:
+                                raise Exception(f"Respuesta de n8n no es JSON válido. Status 200. Body: {response.text[:200]}")
                             
                             # Si n8n devuelve una lista, tomamos el primer elemento
                             if isinstance(data, list) and len(data) > 0:
                                 data = data[0]
                             
                             if isinstance(data, dict):
-                                minuta_texto = data.get('minuta', '')
+                                # 1. Extraer el JSON crudo
                                 json_raw = data.get('json', data)
+                                if isinstance(json_raw, str):
+                                    try:
+                                        json_raw = json.loads(json_raw)
+                                    except json.JSONDecodeError:
+                                        pass
                                 
-                                # Fallback robusto por si n8n no genera bien el markdown
+                                # 2. Buscar claves comunes para la Vista Previa
+                                minuta_texto = ""
+                                for key in ['minuta', 'resumen', 'resultado', 'texto', 'text', 'minutas_texto']:
+                                    if key in data and isinstance(data[key], str) and data[key].strip():
+                                        minuta_texto = data[key]
+                                        break
+                                
+                                # 3. Fallback de seguridad: Si no hay texto, armarlo desde el JSON
                                 if not minuta_texto or "Error" in minuta_texto or "No se pudo" in minuta_texto:
-                                    minuta_texto = "### ✨ Minuta Estructurada\n\n"
-                                    for k, v in json_raw.items():
-                                        if k not in ['minuta', 'json']:
-                                            minuta_texto += f"**{str(k).replace('_', ' ').title()}**\n"
-                                            if isinstance(v, list):
-                                                for item in v:
-                                                    if isinstance(item, dict):
-                                                        for sub_k, sub_v in item.items():
-                                                            minuta_texto += f"- **{str(sub_k).title()}:** {sub_v}\n"
-                                                    else:
-                                                        minuta_texto += f"- {item}\n"
-                                            else:
-                                                minuta_texto += f"{v}\n"
-                                            minuta_texto += "\n"
+                                    minuta_texto = "### ✨ Vista Previa (Generada automáticamente)\n\n"
+                                    if isinstance(json_raw, dict):
+                                        for k, v in json_raw.items():
+                                            if k not in ['minuta', 'json']:
+                                                minuta_texto += f"**{str(k).replace('_', ' ').title()}**\n"
+                                                if isinstance(v, list):
+                                                    for item in v:
+                                                        if isinstance(item, dict):
+                                                            for sub_k, sub_v in item.items():
+                                                                minuta_texto += f"- **{str(sub_k).title()}:** {sub_v}\n"
+                                                        else:
+                                                            minuta_texto += f"- {item}\n"
+                                                else:
+                                                    minuta_texto += f"{v}\n"
+                                                minuta_texto += "\n"
+                                    else:
+                                        minuta_texto += str(json_raw)
                                 
                                 st.session_state['minuta_texto'] = minuta_texto
                                 st.session_state['minuta_json'] = json.dumps(json_raw, indent=4, ensure_ascii=False)
@@ -332,31 +350,50 @@ if uploaded_file:
                             except Exception:
                                 raise Exception(f"Respuesta de n8n no es JSON válido. Status 200. Body: {response.text[:200]}")
                             
+                            # Si n8n devuelve una lista, tomamos el primer elemento
                             if isinstance(data, list) and len(data) > 0:
                                 data = data[0]
                             
                             if isinstance(data, dict):
-                                if 'minuta' in data and 'json' in data:
-                                    texto_crudo = data.get('minuta', '')
-                                    st.session_state['minuta_texto'] = texto_crudo
-                                    
-                                    json_data = data.get('json', {})
-                                    if not json_data and texto_crudo.strip().startswith('{') and texto_crudo.strip().endswith('}'):
-                                        try:
-                                            json_data = json.loads(texto_crudo)
-                                            st.session_state['minuta_texto'] = "Datos extraídos correctamente en formato JSON."
-                                        except json.JSONDecodeError:
-                                            pass
-                                            
-                                    st.session_state['minuta_json'] = json.dumps(json_data, indent=4, ensure_ascii=False)
+                                # 1. Extraer el JSON crudo
+                                json_raw = data.get('json', data)
+                                if isinstance(json_raw, str):
+                                    try:
+                                        json_raw = json.loads(json_raw)
+                                    except json.JSONDecodeError:
+                                        pass
                                 
-                                elif 'tipo_reunion' in data or 'participantes' in data:
-                                    st.session_state['minuta_texto'] = f"Minuta generada con éxito.\nParticipantes: {', '.join(data.get('participantes', []))}"
-                                    st.session_state['minuta_json'] = json.dumps(data, indent=4, ensure_ascii=False)
+                                # 2. Buscar claves comunes para la Vista Previa
+                                minuta_texto = ""
+                                for key in ['minuta', 'resumen', 'resultado', 'texto', 'text', 'minutas_texto']:
+                                    if key in data and isinstance(data[key], str) and data[key].strip():
+                                        minuta_texto = data[key]
+                                        break
                                 
-                                else:
-                                    st.session_state['minuta_texto'] = data.get('text') or data.get('minutas_texto') or str(data)
-                                    st.session_state['minuta_json'] = json.dumps(data, indent=4, ensure_ascii=False)
+                                # 3. Fallback de seguridad: Si no hay texto, armarlo desde el JSON
+                                if not minuta_texto or "Error" in minuta_texto or "No se pudo" in minuta_texto:
+                                    minuta_texto = "### ✨ Vista Previa (Generada automáticamente)\n\n"
+                                    if isinstance(json_raw, dict):
+                                        for k, v in json_raw.items():
+                                            if k not in ['minuta', 'json']:
+                                                minuta_texto += f"**{str(k).replace('_', ' ').title()}**\n"
+                                                if isinstance(v, list):
+                                                    for item in v:
+                                                        if isinstance(item, dict):
+                                                            for sub_k, sub_v in item.items():
+                                                                minuta_texto += f"- **{str(sub_k).title()}:** {sub_v}\n"
+                                                        else:
+                                                            minuta_texto += f"- {item}\n"
+                                                else:
+                                                    minuta_texto += f"{v}\n"
+                                                minuta_texto += "\n"
+                                    else:
+                                        minuta_texto += str(json_raw)
+                                
+                                st.session_state['minuta_texto'] = minuta_texto
+                                st.session_state['minuta_json'] = json.dumps(json_raw, indent=4, ensure_ascii=False)
+                            else:
+                                st.error("Formato de respuesta inesperado de n8n.")
                         else:
                             st.session_state['error_msg'] = f"El servidor n8n devolvió un error (Status {response.status_code}): {response.text[:200]}"
                                 
