@@ -273,7 +273,7 @@ if uploaded_file:
                         # === N8N BYPASS: Limpieza + Chunking en n8n ===
                         url_webhook = get_n8n_url("minutas-chunking")
                         
-                        prompt_sistema = "Genera una minuta con un tono profesional y técnico. Es crítico que preserves todos los acuerdos, decisiones técnicas y fechas mencionadas, eliminando únicamente el ruido de la transcripción pero manteniendo la riqueza del contenido analizado."
+                        prompt_sistema = "Genera una minuta con un tono profesional y técnico. Redacta la minuta en formato narrativo o de lista profesional, evitando etiquetas repetitivas de base de datos en el campo de texto final. Es crítico que preserves todos los acuerdos, decisiones técnicas y fechas mencionadas, eliminando únicamente el ruido de la transcripción pero manteniendo la riqueza del contenido analizado."
                         payload = {
                             "meeting_text": text_content,
                             "system_prompt": prompt_sistema
@@ -329,13 +329,45 @@ if uploaded_file:
                                         minuta_texto = "### ✨ Vista Previa (Estructurada)\n\n"
                                         if isinstance(json_raw, dict):
                                             for k, v in json_raw.items():
-                                                if k not in ['minuta', 'json']:
+                                                if k not in ['minuta', 'json', 'raw_text']:
                                                     minuta_texto += f"**{str(k).replace('_', ' ').title()}**\n"
                                                     if isinstance(v, list):
+                                                        # Detectar si todos tienen la misma fecha para consolidarla
+                                                        fechas_unicas = set()
                                                         for item in v:
                                                             if isinstance(item, dict):
-                                                                for sub_k, sub_v in item.items():
-                                                                    minuta_texto += f"- **{str(sub_k).title()}:** {sub_v}\n"
+                                                                f = item.get('fecha') or item.get('date') or item.get('Fecha')
+                                                                if f: fechas_unicas.add(str(f))
+                                                        
+                                                        if len(fechas_unicas) == 1:
+                                                            minuta_texto += f"📅 *Fecha:* {list(fechas_unicas)[0]}\n\n"
+                                                        else:
+                                                            minuta_texto += "\n"
+                                                            
+                                                        for item in v:
+                                                            if isinstance(item, dict):
+                                                                # Extraer contenido principal omitiendo la etiqueta 'texto'
+                                                                texto_item = item.get('texto') or item.get('descripcion') or item.get('accion') or item.get('decision') or item.get('requerimiento') or item.get('nombre') or item.get('punto') or item.get('Texto')
+                                                                
+                                                                if not texto_item:
+                                                                    # Si no encuentra llave principal, junta valores excepto fechas
+                                                                    texto_item = " - ".join([str(val) for clave, val in item.items() if clave.lower() not in ['fecha', 'date']])
+                                                                
+                                                                extras = []
+                                                                resp = item.get('responsable') or item.get('asignado') or item.get('Responsable')
+                                                                if resp: extras.append(f"Resp: {resp}")
+                                                                estado = item.get('estado') or item.get('status') or item.get('Estado')
+                                                                if estado: extras.append(f"Estado: {estado}")
+                                                                
+                                                                # Si las fechas varían por item, mostrarla en el item
+                                                                if len(fechas_unicas) > 1:
+                                                                    f = item.get('fecha') or item.get('date') or item.get('Fecha')
+                                                                    if f: extras.append(f"Fecha: {f}")
+                                                                    
+                                                                if extras:
+                                                                    texto_item = f"{texto_item} *({', '.join(extras)})*"
+                                                                    
+                                                                minuta_texto += f"- {texto_item}\n"
                                                             else:
                                                                 minuta_texto += f"- {item}\n"
                                                     else:
@@ -356,7 +388,7 @@ if uploaded_file:
                         url_webhook = get_n8n_url("minutas-bypass")
                         tiempo_espera = 1800 # 30 min (Ollama slow start / big files)
 
-                        prompt_sistema = "Genera una minuta con un tono profesional y técnico. Es crítico que preserves todos los acuerdos, decisiones técnicas y fechas mencionadas, eliminando únicamente el ruido de la transcripción pero manteniendo la riqueza del contenido analizado."
+                        prompt_sistema = "Genera una minuta con un tono profesional y técnico. Redacta la minuta en formato narrativo o de lista profesional, evitando etiquetas repetitivas de base de datos en el campo de texto final. Es crítico que preserves todos los acuerdos, decisiones técnicas y fechas mencionadas, eliminando únicamente el ruido de la transcripción pero manteniendo la riqueza del contenido analizado."
                         payload = {
                             "meeting_text": text_content,
                             "system_prompt": prompt_sistema
@@ -409,13 +441,45 @@ if uploaded_file:
                                         minuta_texto = "### ✨ Vista Previa (Estructurada)\n\n"
                                         if isinstance(json_raw, dict):
                                             for k, v in json_raw.items():
-                                                if k not in ['minuta', 'json']:
+                                                if k not in ['minuta', 'json', 'raw_text']:
                                                     minuta_texto += f"**{str(k).replace('_', ' ').title()}**\n"
                                                     if isinstance(v, list):
+                                                        # Detectar si todos tienen la misma fecha para consolidarla
+                                                        fechas_unicas = set()
                                                         for item in v:
                                                             if isinstance(item, dict):
-                                                                for sub_k, sub_v in item.items():
-                                                                    minuta_texto += f"- **{str(sub_k).title()}:** {sub_v}\n"
+                                                                f = item.get('fecha') or item.get('date') or item.get('Fecha')
+                                                                if f: fechas_unicas.add(str(f))
+                                                        
+                                                        if len(fechas_unicas) == 1:
+                                                            minuta_texto += f"📅 *Fecha:* {list(fechas_unicas)[0]}\n\n"
+                                                        else:
+                                                            minuta_texto += "\n"
+                                                            
+                                                        for item in v:
+                                                            if isinstance(item, dict):
+                                                                # Extraer contenido principal omitiendo la etiqueta 'texto'
+                                                                texto_item = item.get('texto') or item.get('descripcion') or item.get('accion') or item.get('decision') or item.get('requerimiento') or item.get('nombre') or item.get('punto') or item.get('Texto')
+                                                                
+                                                                if not texto_item:
+                                                                    # Si no encuentra llave principal, junta valores excepto fechas
+                                                                    texto_item = " - ".join([str(val) for clave, val in item.items() if clave.lower() not in ['fecha', 'date']])
+                                                                
+                                                                extras = []
+                                                                resp = item.get('responsable') or item.get('asignado') or item.get('Responsable')
+                                                                if resp: extras.append(f"Resp: {resp}")
+                                                                estado = item.get('estado') or item.get('status') or item.get('Estado')
+                                                                if estado: extras.append(f"Estado: {estado}")
+                                                                
+                                                                # Si las fechas varían por item, mostrarla en el item
+                                                                if len(fechas_unicas) > 1:
+                                                                    f = item.get('fecha') or item.get('date') or item.get('Fecha')
+                                                                    if f: extras.append(f"Fecha: {f}")
+                                                                    
+                                                                if extras:
+                                                                    texto_item = f"{texto_item} *({', '.join(extras)})*"
+                                                                    
+                                                                minuta_texto += f"- {texto_item}\n"
                                                             else:
                                                                 minuta_texto += f"- {item}\n"
                                                     else:
