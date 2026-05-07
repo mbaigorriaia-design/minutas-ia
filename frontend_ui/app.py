@@ -194,6 +194,11 @@ def extract_text(file):
     # 6. Eliminar saltos de línea excesivos (más de 2 vacíos se reducen a 2)
     texto = re.sub(r'\n{3,}', '\n\n', texto)
     
+    # 7. Limpieza final estricta de caracteres invisibles y espacios colgados
+    texto = re.sub(r'[^\S\r\n]+', ' ', texto) # Reemplaza cualquier espacio horizontal raro por un espacio simple
+    texto = re.sub(r' \n', '\n', texto) # Quita espacios antes de salto de línea
+    texto = ''.join(c for c in texto if c.isprintable() or c in '\n\r\t') # Quita caracteres de control invisibles
+    
     return texto.strip()
 
 # Inicializar estados si no existen
@@ -284,9 +289,9 @@ if uploaded_file:
                             except Exception:
                                 raise Exception(f"Respuesta de n8n no es JSON válido. Status 200. Body: {response.text[:200]}")
                             
-                            # Si n8n devuelve una lista, tomamos el primer elemento
-                            if isinstance(data, list) and len(data) > 0:
-                                data = data[0]
+                            # Manejo de Respuestas: Tomar robustamente el primer elemento si es lista
+                            if isinstance(data, list):
+                                data = data[0] if len(data) > 0 else {}
                             
                             if isinstance(data, dict):
                                 # 1. Extraer el JSON crudo
@@ -301,28 +306,38 @@ if uploaded_file:
                                 minuta_texto = ""
                                 for key in ['minuta', 'resumen', 'resultado', 'texto', 'text', 'minutas_texto']:
                                     if key in data and isinstance(data[key], str) and data[key].strip():
-                                        minuta_texto = data[key]
+                                        minuta_texto = data[key].strip()
                                         break
                                 
-                                # 3. Fallback de seguridad: Si no hay texto, armarlo desde el JSON
+                                # 3. Fallback de visibilidad: Buscar texto largo o armar estructura
                                 if not minuta_texto or "Error" in minuta_texto or "No se pudo" in minuta_texto:
-                                    minuta_texto = "### ✨ Vista Previa (Generada automáticamente)\n\n"
+                                    texto_largo = ""
                                     if isinstance(json_raw, dict):
-                                        for k, v in json_raw.items():
-                                            if k not in ['minuta', 'json']:
-                                                minuta_texto += f"**{str(k).replace('_', ' ').title()}**\n"
-                                                if isinstance(v, list):
-                                                    for item in v:
-                                                        if isinstance(item, dict):
-                                                            for sub_k, sub_v in item.items():
-                                                                minuta_texto += f"- **{str(sub_k).title()}:** {sub_v}\n"
-                                                        else:
-                                                            minuta_texto += f"- {item}\n"
-                                                else:
-                                                    minuta_texto += f"{v}\n"
-                                                minuta_texto += "\n"
+                                        # Buscar el string más largo dentro de los valores del JSON
+                                        for v in json_raw.values():
+                                            if isinstance(v, str) and len(v) > len(texto_largo):
+                                                texto_largo = v
+                                                
+                                    if len(texto_largo) > 50:
+                                        minuta_texto = "### ✨ Resumen Principal\n\n" + texto_largo
                                     else:
-                                        minuta_texto += str(json_raw)
+                                        minuta_texto = "### ✨ Vista Previa (Estructurada)\n\n"
+                                        if isinstance(json_raw, dict):
+                                            for k, v in json_raw.items():
+                                                if k not in ['minuta', 'json']:
+                                                    minuta_texto += f"**{str(k).replace('_', ' ').title()}**\n"
+                                                    if isinstance(v, list):
+                                                        for item in v:
+                                                            if isinstance(item, dict):
+                                                                for sub_k, sub_v in item.items():
+                                                                    minuta_texto += f"- **{str(sub_k).title()}:** {sub_v}\n"
+                                                            else:
+                                                                minuta_texto += f"- {item}\n"
+                                                    else:
+                                                        minuta_texto += f"{v}\n"
+                                                    minuta_texto += "\n"
+                                        else:
+                                            minuta_texto += str(json_raw)
                                 
                                 st.session_state['minuta_texto'] = minuta_texto
                                 st.session_state['minuta_json'] = json.dumps(json_raw, indent=4, ensure_ascii=False)
@@ -350,9 +365,9 @@ if uploaded_file:
                             except Exception:
                                 raise Exception(f"Respuesta de n8n no es JSON válido. Status 200. Body: {response.text[:200]}")
                             
-                            # Si n8n devuelve una lista, tomamos el primer elemento
-                            if isinstance(data, list) and len(data) > 0:
-                                data = data[0]
+                            # Manejo de Respuestas: Tomar robustamente el primer elemento si es lista
+                            if isinstance(data, list):
+                                data = data[0] if len(data) > 0 else {}
                             
                             if isinstance(data, dict):
                                 # 1. Extraer el JSON crudo
@@ -367,28 +382,38 @@ if uploaded_file:
                                 minuta_texto = ""
                                 for key in ['minuta', 'resumen', 'resultado', 'texto', 'text', 'minutas_texto']:
                                     if key in data and isinstance(data[key], str) and data[key].strip():
-                                        minuta_texto = data[key]
+                                        minuta_texto = data[key].strip()
                                         break
                                 
-                                # 3. Fallback de seguridad: Si no hay texto, armarlo desde el JSON
+                                # 3. Fallback de visibilidad: Buscar texto largo o armar estructura
                                 if not minuta_texto or "Error" in minuta_texto or "No se pudo" in minuta_texto:
-                                    minuta_texto = "### ✨ Vista Previa (Generada automáticamente)\n\n"
+                                    texto_largo = ""
                                     if isinstance(json_raw, dict):
-                                        for k, v in json_raw.items():
-                                            if k not in ['minuta', 'json']:
-                                                minuta_texto += f"**{str(k).replace('_', ' ').title()}**\n"
-                                                if isinstance(v, list):
-                                                    for item in v:
-                                                        if isinstance(item, dict):
-                                                            for sub_k, sub_v in item.items():
-                                                                minuta_texto += f"- **{str(sub_k).title()}:** {sub_v}\n"
-                                                        else:
-                                                            minuta_texto += f"- {item}\n"
-                                                else:
-                                                    minuta_texto += f"{v}\n"
-                                                minuta_texto += "\n"
+                                        # Buscar el string más largo dentro de los valores del JSON
+                                        for v in json_raw.values():
+                                            if isinstance(v, str) and len(v) > len(texto_largo):
+                                                texto_largo = v
+                                                
+                                    if len(texto_largo) > 50:
+                                        minuta_texto = "### ✨ Resumen Principal\n\n" + texto_largo
                                     else:
-                                        minuta_texto += str(json_raw)
+                                        minuta_texto = "### ✨ Vista Previa (Estructurada)\n\n"
+                                        if isinstance(json_raw, dict):
+                                            for k, v in json_raw.items():
+                                                if k not in ['minuta', 'json']:
+                                                    minuta_texto += f"**{str(k).replace('_', ' ').title()}**\n"
+                                                    if isinstance(v, list):
+                                                        for item in v:
+                                                            if isinstance(item, dict):
+                                                                for sub_k, sub_v in item.items():
+                                                                    minuta_texto += f"- **{str(sub_k).title()}:** {sub_v}\n"
+                                                            else:
+                                                                minuta_texto += f"- {item}\n"
+                                                    else:
+                                                        minuta_texto += f"{v}\n"
+                                                    minuta_texto += "\n"
+                                        else:
+                                            minuta_texto += str(json_raw)
                                 
                                 st.session_state['minuta_texto'] = minuta_texto
                                 st.session_state['minuta_json'] = json.dumps(json_raw, indent=4, ensure_ascii=False)
