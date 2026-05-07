@@ -272,7 +272,12 @@ if uploaded_file:
                     if "Extenso" in modo_procesamiento:
                         # === N8N BYPASS: Limpieza + Chunking en n8n ===
                         url_webhook = get_n8n_url("minutas-chunking")
-                        payload = {"meeting_text": text_content}
+                        
+                        prompt_sistema = "Genera una minuta con un tono profesional y técnico. Es crítico que preserves todos los acuerdos, decisiones técnicas y fechas mencionadas, eliminando únicamente el ruido de la transcripción pero manteniendo la riqueza del contenido analizado."
+                        payload = {
+                            "meeting_text": text_content,
+                            "system_prompt": prompt_sistema
+                        }
                         
                         # Aumentamos el timeout al máximo (2 horas) para archivos masivos
                         tiempo_espera = 7200 # 2 horas
@@ -351,7 +356,11 @@ if uploaded_file:
                         url_webhook = get_n8n_url("minutas-bypass")
                         tiempo_espera = 1800 # 30 min (Ollama slow start / big files)
 
-                        payload = {"meeting_text": text_content}
+                        prompt_sistema = "Genera una minuta con un tono profesional y técnico. Es crítico que preserves todos los acuerdos, decisiones técnicas y fechas mencionadas, eliminando únicamente el ruido de la transcripción pero manteniendo la riqueza del contenido analizado."
+                        payload = {
+                            "meeting_text": text_content,
+                            "system_prompt": prompt_sistema
+                        }
                         
                         response = requests.post(
                             url_webhook,
