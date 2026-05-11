@@ -100,3 +100,12 @@ docker compose up -d --build
    - Significa que n8n no encuentra a Ollama. Asegúrate de que las variables de entorno de n8n apunten a `ollama` y no a `localhost` o `host.docker.internal`.
 3. **El JSON de respuesta se imprime con etiquetas raras (Texto:, Fecha:):**
    - El formateador de listas en `app.py` está diseñado para atrapar y omitir estas etiquetas dinámicamente. Si aparece una nueva etiqueta recurrente, agrégala a la lista de omisiones dentro de la lógica del *Fallback* en `app.py`.
+
+## 🚀 Roadmap & Trabajo Futuro (Performance)
+
+Para escalar la performance y reducir los tiempos de procesamiento en documentos de Word muy extensos:
+
+1. **Aceleración por Hardware (GPU):** Adquirir una GPU dedicada e integrarla al servidor (usando `deploy.resources.reservations.devices` en Docker Compose). Esto reduciría el procesamiento masivo de 40 minutos a apenas 3-5 minutos.
+2. **Procesamiento en Paralelo (Map-Reduce):** Modificar el *Split-in-Batches* de n8n para que procese múltiples *Chunks* de texto en simultáneo en lugar de uno por uno, aprovechando los múltiples núcleos del CPU.
+3. **Implementación de RAG (VectorDB):** Integrar una base de datos vectorial (como ChromaDB). Así, en lugar de leer todo el documento de corrido, el LLM solo extraerá y procesará los párrafos que contengan decisiones o tareas.
+4. **Caché de Peticiones:** Guardar el resultado (hash) de los documentos ya procesados para devolver la minuta instantáneamente si otro usuario vuelve a subir el mismo archivo exacto.
