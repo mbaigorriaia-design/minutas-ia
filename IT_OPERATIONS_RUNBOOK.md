@@ -61,6 +61,6 @@ El sistema procesa texto pesado de manera asíncrona mediante un bucle de *Batch
 deploy:
   resources:
     limits:
-      memory: 6G
+      memory: 24G
 ```
-*(Idealmente asigne un máximo de 6GB a Ollama si el servidor tiene 8GB totales).*
+*(Asigne un máximo de 24GB a Ollama dado que el servidor ahora cuenta con **32GB de RAM totales**, reservando los 8GB restantes para el SO, n8n y Streamlit).*

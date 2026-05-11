@@ -65,9 +65,9 @@ El proyecto funciona con tres componentes clave que se comunican internamente en
 
 ## ⚙️ Requisitos Previos (Prerequisites)
 
-Para desplegar este entorno en el servidor, solo necesitas:
+Para desplegar este entorno en el servidor de alto rendimiento (32GB RAM), necesitas:
 - **Docker Engine y Docker Compose** (Administrado idealmente vía Portainer).
-- **Ollama** (Corriendo en el host del servidor o contenedorizado, con el modelo base descargado: `ollama run qwen2.5:3b` o `llama3.2:3b`).
+- **Ollama** (Corriendo en el host del servidor o contenedorizado, con un modelo avanzado descargado: `ollama run qwen2.5:14b` o `llama3:8b`).
 
 ## 🚀 Cómo Iniciar / Desplegar
 
