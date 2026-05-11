@@ -95,7 +95,7 @@ docker compose up -d --build
 ## ⚠️ Resolución de Problemas Comunes (Troubleshooting)
 
 1. **La ejecución da "Timeout" o tarda más de 40 minutos:**
-   - Ocurre con audios de más de 2 horas. En `app.py`, la variable `tiempo_espera` en las llamadas HTTP está seteada a 7200 segundos (2 hrs) para soportarlo, pero asegúrate de que el flujo de *n8n* esté utilizando el modo "Extenso" (Chunking) para evitar colgar al modelo.
+   - Ocurre con documentos de Word o textos extremadamente largos (más de 30-40 páginas). En `app.py`, la variable `tiempo_espera` en las llamadas HTTP está seteada a 7200 segundos (2 hrs) para soportarlo, pero asegúrate de que el flujo de *n8n* esté utilizando el modo "Extenso" (Chunking) para evitar colgar al modelo.
 2. **Error de Conexión SSRF / ECONNREFUSED en n8n:**
    - Significa que n8n no encuentra a Ollama. Asegúrate de que las variables de entorno de n8n apunten a `ollama` y no a `localhost` o `host.docker.internal`.
 3. **El JSON de respuesta se imprime con etiquetas raras (Texto:, Fecha:):**
