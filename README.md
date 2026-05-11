@@ -59,6 +59,12 @@ El proyecto funciona con tres componentes clave que se comunican internamente en
    - **Responsabilidad:** Ejecutar el LLM localmente (sin salidas a internet). 
    - La red interna de Docker resuelve la comunicación apuntando a `http://ollama:11434`.
 
+## ⚙️ Requisitos Previos (Prerequisites)
+
+Antes de levantar el entorno por primera vez, asegúrate de tener instalado:
+- **[Docker Desktop](https://www.docker.com/products/docker-desktop/)** (con WSL2 activado si estás en Windows).
+- **[Ollama](https://ollama.com/)** (Debe estar corriendo localmente y debes haber descargado el modelo base ejecutando: `ollama run qwen2.5:3b` o `llama3.2:3b`).
+
 ## 🚀 Cómo Iniciar / Desplegar
 
 El proyecto está contenerizado. Si necesitas levantarlo de cero o reiniciar el entorno:
