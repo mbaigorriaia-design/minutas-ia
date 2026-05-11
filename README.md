@@ -1,45 +1,60 @@
+# ⚡ Minutas-IA (Legacy / Versión Estable)
+
 <div align="center">
-  <h1>⚡ Minutas-IA</h1>
-  <p><strong>Un generador automatizado de minutas de reunión 100% On-Premise, seguro y potenciado por IA Local.</strong></p>
+  <p><strong>Guía de Arquitectura y Mantenimiento para Desarrolladores</strong></p>
 </div>
 
 ---
 
-## 🎯 ¿Qué es Minutas-IA?
-Minutas-IA es una aplicación de grado empresarial diseñada para transformar transcripciones de reuniones, audios y documentos largos en **minutas estructuradas, accionables y precisas**. Todo esto procesado de forma local (LLM On-Premise), garantizando **Privacidad Zero-Trust**. ¡Ningún dato sensible abandona tu servidor!
+Bienvenido al repositorio de **Minutas-IA**. Este documento está diseñado como una guía técnica para que cualquier desarrollador o ingeniero del equipo pueda comprender, mantener y extender este proyecto rápidamente. 
 
-## ✨ Características Principales
-- 🔒 **Privacidad Total**: Inferencia local con Ollama. Cero llamadas a APIs externas comerciales.
-- ⚡ **Dos Modos Inteligentes**:
-  - **Modo Rápido**: Para reuniones cortas. Procesamiento ágil con resultados directos.
-  - **Modo Extenso (Anti-OOM)**: Algoritmo de *Chunking* avanzado y *Split-in-Batches* gestionado por n8n para documentos colosales, evitando colapsos de memoria RAM.
-- 🧹 **Sanitización de Texto**: Motor de expresiones regulares (RegEx) optimizado en Python para eliminar marcas de tiempo innecesarias y ruidos de transcripción antes del procesamiento.
-- 🎨 **Renderizado Inteligente y Resiliente**: Fallback estructurado en el frontend que garantiza una **Vista Previa Markdown** impecable (agrupando fechas y ocultando etiquetas de sistema) aunque la IA genere formatos inesperados.
-- 📥 **Exportación Profesional**: Visualización limpia y descarga directa de la minuta en formato `.json` estructurado para una fácil integración con bases de datos o sistemas de tickets.
+El objetivo de este sistema es generar minutas de reuniones de forma local (On-Premise) garantizando la privacidad de los datos, usando una arquitectura basada en contenedores.
 
-## 🛠️ Stack Tecnológico
-- **Frontend**: `Streamlit` (Python 3.11) - Interfaz de usuario reactiva, moderna y con estilo *glassmorphism*.
-- **Orquestador**: `n8n` (Node.js) - Gestión de flujos lógicos, enrutamiento y división de texto (Batches).
-- **Motor de IA**: `Ollama` - Inferencia local para modelos LLM avanzados (como Llama 3 o Qwen).
-- **Infraestructura**: `Docker` & `Docker Compose` - Contenedores aislados sobre una red interna segura (Bridge).
+## 🏗️ Arquitectura del Sistema
 
-## 🚀 Arquitectura a Alto Nivel
-1. El usuario carga la transcripción cruda en la **UI de Streamlit**.
-2. Streamlit aplica limpieza semántica al texto y envía el *Payload HTTP* a **n8n**.
-3. **n8n** enruta la petición según la longitud del documento y consulta a **Ollama** de forma segura vía red interna (`http://ollama:11434`).
-4. **Ollama** analiza el contexto, extrae Decisiones, Acciones y Responsables, y le devuelve la data estructurada a **n8n**.
-5. **n8n** retorna un JSON al **Frontend**, el cual utiliza un formateador heurístico para renderizar la Vista Previa perfecta sin ruido visual.
+El proyecto funciona con tres componentes clave que se comunican internamente en Docker:
 
-## 📦 Instalación y Despliegue
-El proyecto está completamente contenerizado y listo para ejecutarse en entornos Linux de producción.
+1. **Frontend (`Streamlit` / Python)**
+   - **Archivo clave:** `frontend_ui/app.py`
+   - **Responsabilidad:** Interfaz de usuario. Limpia las transcripciones con Expresiones Regulares (RegEx) para quitar "ruido" (marcas de tiempo, repeticiones) antes de enviarlo a la IA.
+   - **Magia interna:** Contiene un *fallback robusto*. Si la IA falla en formatear el Markdown, el script en Python desarma el JSON bruto y lo renderiza de manera segura para que la pantalla nunca quede en blanco.
+
+2. **Orquestador (`n8n` / Node.js)**
+   - **Responsabilidad:** Gestiona el flujo lógico y los Webhooks (`/webhook/minutas-bypass` y `/webhook/minutas-chunking`).
+   - **Chunking (Anti-OOM):** Implementa un bucle *Split-in-Batches* para documentos inmensos, evitando que el contenedor colapse por falta de memoria (Out Of Memory).
+
+3. **Inferencia Local (`Ollama`)**
+   - **Responsabilidad:** Ejecutar el LLM localmente (sin salidas a internet). 
+   - La red interna de Docker resuelve la comunicación apuntando a `http://ollama:11434`.
+
+## 🚀 Cómo Iniciar / Desplegar
+
+El proyecto está contenerizado. Si necesitas levantarlo de cero o reiniciar el entorno:
 
 ```bash
-# 1. Clonar el repositorio
+# Clonar y entrar al directorio
 git clone https://github.com/mbaigorriaia-design/minutas-ia.git
 cd minutas-ia
 
-# 2. Levantar los servicios en background
+# Construir y levantar todo en background
 docker compose up -d --build
 ```
+> **Tip de Mantenimiento:** Para actualizar el servidor tras hacer cambios en el código (`app.py`), entra a Portainer, selecciona el stack de `minutas-ia` y haz clic en **"Pull and redeploy"**.
 
-*Desarrollado con ❤️ para llevar la automatización corporativa al siguiente nivel.*
+## 🛠️ Guía Rápida para Desarrolladores (Dónde tocar)
+
+- **Para cambiar el comportamiento del Prompt de la IA:** 
+  Edita la variable `prompt_sistema` dentro de `frontend_ui/app.py` (líneas ~275 y ~360).
+- **Para mejorar la limpieza del texto previo:** 
+  Modifica la función `extract_text()` en `frontend_ui/app.py`. Ahí se centralizan todos los RegEx.
+- **Para modificar el enrutamiento o puertos:** 
+  Revisa `docker-compose.yml`. Recuerda no usar `localhost` para comunicación entre contenedores, usar siempre los nombres del servicio (ej: `http://n8n:5678`).
+
+## ⚠️ Resolución de Problemas Comunes (Troubleshooting)
+
+1. **La ejecución da "Timeout" o tarda más de 40 minutos:**
+   - Ocurre con audios de más de 2 horas. En `app.py`, la variable `tiempo_espera` en las llamadas HTTP está seteada a 7200 segundos (2 hrs) para soportarlo, pero asegúrate de que el flujo de *n8n* esté utilizando el modo "Extenso" (Chunking) para evitar colgar al modelo.
+2. **Error de Conexión SSRF / ECONNREFUSED en n8n:**
+   - Significa que n8n no encuentra a Ollama. Asegúrate de que las variables de entorno de n8n apunten a `ollama` y no a `localhost` o `host.docker.internal`.
+3. **El JSON de respuesta se imprime con etiquetas raras (Texto:, Fecha:):**
+   - El formateador de listas en `app.py` está diseñado para atrapar y omitir estas etiquetas dinámicamente. Si aparece una nueva etiqueta recurrente, agrégala a la lista de omisiones dentro de la lógica del *Fallback* en `app.py`.
