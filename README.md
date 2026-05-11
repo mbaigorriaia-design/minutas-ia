@@ -17,22 +17,26 @@ graph TD
     classDef frontend fill:#ff4b4b,stroke:#fff,stroke-width:2px,color:#fff;
     classDef n8n fill:#ff6d5a,stroke:#fff,stroke-width:2px,color:#fff;
     classDef llm fill:#000000,stroke:#fff,stroke-width:2px,color:#fff;
+    classDef server fill:#f5f5f5,stroke:#9e9e9e,stroke-width:2px,stroke-dasharray: 5 5;
 
     User([👤 Usuario])
     
-    subgraph "Frontend (Streamlit)"
-        UI[💻 Interfaz Web]:::frontend
-        Extractor[📄 Limpieza RegEx]:::frontend
-    end
-    
-    subgraph "Orquestación (n8n)"
-        Router{Modo}:::n8n
-        ModoRapido[⚡ Bypass]:::n8n
-        ModoExtenso[📚 Batches]:::n8n
-    end
-    
-    subgraph "IA Local"
-        Ollama[(🧠 Ollama)]:::llm
+    subgraph "Servidor (Red Docker Compose)"
+        direction TB
+        subgraph "Contenedor: Streamlit"
+            UI[💻 Interfaz Web]:::frontend
+            Extractor[📄 Limpieza RegEx]:::frontend
+        end
+        
+        subgraph "Contenedor: n8n"
+            Router{Modo}:::n8n
+            ModoRapido[⚡ Bypass]:::n8n
+            ModoExtenso[📚 Batches]:::n8n
+        end
+        
+        subgraph "Contenedor: Ollama"
+            Ollama[(🧠 Ollama)]:::llm
+        end
     end
 
     User --> UI
