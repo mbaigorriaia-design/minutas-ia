@@ -61,9 +61,9 @@ El proyecto funciona con tres componentes clave que se comunican internamente en
 
 ## ⚙️ Requisitos Previos (Prerequisites)
 
-Antes de levantar el entorno por primera vez, asegúrate de tener instalado:
-- **[Docker Desktop](https://www.docker.com/products/docker-desktop/)** (con WSL2 activado si estás en Windows).
-- **[Ollama](https://ollama.com/)** (Debe estar corriendo localmente y debes haber descargado el modelo base ejecutando: `ollama run qwen2.5:3b` o `llama3.2:3b`).
+Para desplegar este entorno en el servidor, solo necesitas:
+- **Docker Engine y Docker Compose** (Administrado idealmente vía Portainer).
+- **Ollama** (Corriendo en el host del servidor o contenedorizado, con el modelo base descargado: `ollama run qwen2.5:3b` o `llama3.2:3b`).
 
 ## 🚀 Cómo Iniciar / Desplegar
 
