@@ -46,7 +46,7 @@ graph TD
     ModoRapido & ModoExtenso --> Ollama
     Ollama --> ModoRapido & ModoExtenso
     ModoRapido & ModoExtenso --> UI
-    UI --> User
+    UI -- "Vista Previa & Descarga (.json)" --> User
 ```
 El proyecto funciona con tres componentes clave que se comunican internamente en Docker:
 
