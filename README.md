@@ -12,6 +12,38 @@ El objetivo de este sistema es generar minutas de reuniones de forma local (On-P
 
 ## 🏗️ Arquitectura del Sistema
 
+```mermaid
+graph TD
+    classDef frontend fill:#ff4b4b,stroke:#fff,stroke-width:2px,color:#fff;
+    classDef n8n fill:#ff6d5a,stroke:#fff,stroke-width:2px,color:#fff;
+    classDef llm fill:#000000,stroke:#fff,stroke-width:2px,color:#fff;
+
+    User([👤 Usuario])
+    
+    subgraph "Frontend (Streamlit)"
+        UI[💻 Interfaz Web]:::frontend
+        Extractor[📄 Limpieza RegEx]:::frontend
+    end
+    
+    subgraph "Orquestación (n8n)"
+        Router{Modo}:::n8n
+        ModoRapido[⚡ Bypass]:::n8n
+        ModoExtenso[📚 Batches]:::n8n
+    end
+    
+    subgraph "IA Local"
+        Ollama[(🧠 Ollama)]:::llm
+    end
+
+    User --> UI
+    UI --> Extractor
+    Extractor --> Router
+    Router --> ModoRapido & ModoExtenso
+    ModoRapido & ModoExtenso --> Ollama
+    Ollama --> ModoRapido & ModoExtenso
+    ModoRapido & ModoExtenso --> UI
+    UI --> User
+```
 El proyecto funciona con tres componentes clave que se comunican internamente en Docker:
 
 1. **Frontend (`Streamlit` / Python)**
